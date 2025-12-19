@@ -73,7 +73,8 @@ local function open_windows(tree_buf, preview_buf)
   end
   api.nvim_win_set_option(tree_win, "cursorline", true)
   api.nvim_win_set_option(preview_win, "cursorline", false)
-  api.nvim_win_set_option(preview_win, "number", true)
+  -- We render line numbers manually inside the preview content.
+  api.nvim_win_set_option(preview_win, "number", false)
 
   return tree_win, preview_win
 end
