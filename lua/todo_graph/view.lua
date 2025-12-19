@@ -4,7 +4,7 @@ local todo = require("todo_graph")
 local View = {}
 View.__index = View
 
-local instructions = "q: close   r: refresh   <CR>: toggle   Tab: preview   S-Tab: tree"
+local instructions = "q: close   r: refresh   Enter: toggle"
 
 local function buf_set_option(buf, name, value)
   if api.nvim_set_option_value then
