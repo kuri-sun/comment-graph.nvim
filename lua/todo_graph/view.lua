@@ -73,8 +73,8 @@ local function open_windows(tree_buf, preview_buf)
   end
   api.nvim_win_set_option(tree_win, "cursorline", true)
   api.nvim_win_set_option(preview_win, "cursorline", false)
-  -- We render line numbers manually inside the preview content.
-  api.nvim_win_set_option(preview_win, "number", false)
+  -- Use window line numbers; we no longer render them manually.
+  api.nvim_win_set_option(preview_win, "number", true)
 
   return tree_win, preview_win
 end
@@ -261,7 +261,7 @@ function View:update_preview()
       local finish = math.min(total, lnum + 8)
       lines = {}
       for i = start, finish do
-        lines[#lines + 1] = string.format("%5d %s", i, data[i])
+        lines[#lines + 1] = data[i]
       end
       self.highlight_line = (lnum - start)
     end
