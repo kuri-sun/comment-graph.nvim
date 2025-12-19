@@ -122,4 +122,25 @@ function M.tree(opts)
   return parse_tree(out), nil
 end
 
+-- Status helper: returns counts for statusline or logging.
+-- { roots = n, total = m }
+function M.status(opts)
+  local out, err = run_view(vim.tbl_extend("force", { roots_only = false }, opts or {}))
+  if err then
+    return nil, err
+  end
+  local tree = parse_tree(out)
+  local total = 0
+  local function walk(nodes)
+    for _, n in ipairs(nodes) do
+      total = total + 1
+      if n.children then
+        walk(n.children)
+      end
+    end
+  end
+  walk(tree or {})
+  return { roots = #(tree or {}), total = total }, nil
+end
+
 return M
