@@ -1,0 +1,24 @@
+if vim.fn.has("nvim-0.8") == 0 then
+  return
+end
+
+local todo = require("todo_graph")
+local view = require("todo_graph.view")
+
+vim.api.nvim_create_user_command("TodoGraphInfo", function()
+  local out, err = todo.version()
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
+    return
+  end
+  out = (out or ""):gsub("%s+$", "")
+  vim.notify(out == "" and "todo-graph: ok" or out, vim.log.levels.INFO)
+end, { desc = "Show todo-graph version (binary resolver aware)" })
+
+vim.api.nvim_create_user_command("TodoGraphRoots", function(opts)
+  view.open_roots({ dir = opts.fargs[1] })
+end, {
+  desc = "Show TODO roots (roots-only view in a window)",
+  nargs = "?",
+  complete = "dir",
+})

@@ -1,0 +1,97 @@
+local M = {}
+
+local config = {
+  bin = nil, -- user override
+}
+
+local function trim_trailing(s)
+  return (s or ""):gsub("%s+$", "")
+end
+
+local function path_exists(path)
+  return vim.loop.fs_stat(path) ~= nil
+end
+
+local function join(...)
+  return table.concat({ ... }, "/")
+end
+
+local function resolve_bin()
+  if config.bin and path_exists(config.bin) then
+    return config.bin
+  end
+
+  -- Try project-local node_modules/.bin/todo-graph
+  local cwd = vim.loop.cwd() or "."
+  local local_bin = join(cwd, "node_modules", ".bin", "todo-graph")
+  if path_exists(local_bin) then
+    return local_bin
+  end
+
+  -- Fallback to PATH
+  return "todo-graph"
+end
+
+local function run_version()
+  local bin = resolve_bin()
+  local cmd = { bin, "--version" }
+  local ok, out, err = pcall(vim.fn.system, cmd)
+  if not ok then
+    return nil, ("failed to run todo-graph: %s"):format(out)
+  end
+  local status = vim.v.shell_error
+  if status ~= 0 then
+    return nil, err ~= "" and err or out
+  end
+  return out, nil
+end
+
+local function run_view(opts)
+  opts = opts or {}
+  local bin = resolve_bin()
+  local dir = opts.dir or vim.loop.cwd() or "."
+  local args = { bin, "view", "--dir", dir }
+  if opts.roots_only then
+    table.insert(args, "--roots-only")
+  end
+  local ok, out, err = pcall(vim.fn.system, args)
+  if not ok then
+    return nil, ("failed to run todo-graph: %s"):format(out)
+  end
+  if vim.v.shell_error ~= 0 then
+    return nil, err ~= "" and err or out
+  end
+  return trim_trailing(out), nil
+end
+
+local function parse_view(output)
+  local roots = {}
+  for line in output:gmatch("[^\r\n]+") do
+    line = vim.trim(line)
+    if line ~= "" and vim.startswith(line, "- []") then
+      local id = line:match("%- %[%] ([^%s]+)")
+      if id then
+        table.insert(roots, id)
+      end
+    end
+  end
+  return roots
+end
+
+function M.setup(opts)
+  config = vim.tbl_extend("force", config, opts or {})
+end
+
+function M.version()
+  return run_version()
+end
+
+function M.roots(opts)
+  local out, err = run_view(vim.tbl_extend("force", { roots_only = true }, opts or {}))
+  if err then
+    return nil, err
+  end
+  return parse_view(out), nil
+end
+
+return M
