@@ -41,6 +41,16 @@ local function layout()
   }
 end
 
+local function set_preview_title(win, title)
+  if not (win and api.nvim_win_is_valid(win)) then
+    return
+  end
+  api.nvim_win_set_config(win, {
+    title = " " .. title .. " ",
+    title_pos = "center",
+  })
+end
+
 local function open_windows(tree_buf, preview_buf)
   local dims = layout()
 
@@ -63,8 +73,6 @@ local function open_windows(tree_buf, preview_buf)
     row = dims.row,
     col = dims.col + dims.tree_width + dims.gap,
     border = "rounded",
-    title = " Preview ",
-    title_pos = "center",
     style = "minimal",
   })
 
@@ -79,6 +87,8 @@ local function open_windows(tree_buf, preview_buf)
   api.nvim_win_set_option(preview_win, "cursorline", false)
   -- Use window line numbers; we no longer render them manually.
   api.nvim_win_set_option(preview_win, "number", true)
+
+  set_preview_title(preview_win, "Preview")
 
   return tree_win, preview_win
 end
@@ -249,6 +259,8 @@ function View:update_preview()
   local lnum = tonumber(todo.line) or 1
   self.highlight_line = nil
   local header = {}
+  local display_name = path and vim.fn.fnamemodify(path, ":~:.") or "(unknown file)"
+  set_preview_title(self.preview_win, display_name)
 
   local lines
   if path and vim.fn.filereadable(path) == 1 then
