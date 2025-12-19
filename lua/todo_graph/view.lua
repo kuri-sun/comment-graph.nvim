@@ -1,61 +1,11 @@
 local api = vim.api
 local todo = require("todo_graph")
+local ui = require("todo_graph.ui")
 
 local View = {}
 View.__index = View
 
 local instructions = "q: close   r: refresh   Enter: toggle"
-
-local function buf_set_option(buf, name, value)
-	if api.nvim_set_option_value then
-		api.nvim_set_option_value(name, value, { buf = buf })
-	else
-		api.nvim_buf_set_option(buf, name, value)
-	end
-end
-
-local function win_set_option(win, name, value)
-	if api.nvim_set_option_value then
-		api.nvim_set_option_value(name, value, { win = win })
-	else
-		api.nvim_win_set_option(win, name, value)
-	end
-end
-
-local function is_list(tbl)
-	if vim.islist then
-		return vim.islist(tbl)
-	end
-	return vim.tbl_islist(tbl)
-end
-
-local function file_exists(path)
-	return path and vim.loop.fs_stat(path) ~= nil
-end
-
-local function graph_exists(root)
-	local base = vim.fn.fnamemodify(root or ".", ":p")
-	return file_exists(base .. "/.todo-graph") or file_exists(base .. "/.todo-graph.json")
-end
-
-local function create_buf()
-	local buf = api.nvim_create_buf(false, true)
-	buf_set_option(buf, "bufhidden", "wipe")
-	buf_set_option(buf, "filetype", "todo-graph")
-	buf_set_option(buf, "modifiable", false)
-	buf_set_option(buf, "buftype", "nofile")
-	buf_set_option(buf, "swapfile", false)
-	return buf
-end
-
-local function create_preview_buf()
-	local buf = api.nvim_create_buf(false, true)
-	buf_set_option(buf, "bufhidden", "wipe")
-	buf_set_option(buf, "buftype", "nofile")
-	buf_set_option(buf, "swapfile", false)
-	buf_set_option(buf, "modifiable", false)
-	return buf
-end
 
 local function layout()
 	local total_width = math.max(80, math.floor(vim.o.columns * 0.9))
