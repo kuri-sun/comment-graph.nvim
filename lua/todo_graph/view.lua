@@ -4,6 +4,7 @@ local todo = require("todo_graph")
 local View = {}
 View.__index = View
 
+local uv = vim.uv or vim.loop
 local instructions = "q: close   r: refresh   Enter: toggle"
 
 -- option helpers (handle newer nvim_set_option_value when available)
@@ -30,7 +31,7 @@ end
 
 -- filesystem helpers
 local function file_exists(path)
-  return path and vim.loop.fs_stat(path) ~= nil
+  return path and uv.fs_stat(path) ~= nil
 end
 
 local function graph_exists(root)
@@ -337,7 +338,8 @@ function View:update_preview()
 end
 
 function View:refresh()
-  self.dir = vim.fn.fnamemodify(self.dir or (vim.loop.cwd() or "."), ":p")
+  local cwd = uv.cwd and uv.cwd() or vim.fn.getcwd()
+  self.dir = vim.fn.fnamemodify(self.dir or (cwd or "."), ":p")
 
   if not graph_exists(self.dir) then
     local msg = {
