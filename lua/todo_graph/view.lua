@@ -50,6 +50,7 @@ local function layout()
     height = height,
     row = row,
     col = col,
+    total_width = tree_width + gap + preview_width,
   }
 end
 
@@ -102,7 +103,32 @@ local function open_windows(tree_buf, preview_buf)
 
   set_preview_title(preview_win, "Preview")
 
-  return tree_win, preview_win
+  -- footer window for key hints
+  local footer_buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_option(footer_buf, "bufhidden", "wipe")
+  api.nvim_buf_set_option(footer_buf, "buftype", "nofile")
+  api.nvim_buf_set_option(footer_buf, "modifiable", false)
+  api.nvim_buf_set_lines(footer_buf, 0, -1, false, { "q: close   r: refresh   <CR>: toggle   Tab: preview   S-Tab: tree" })
+
+  local footer_row = dims.row + dims.height + 1
+  local footer_win = api.nvim_open_win(footer_buf, false, {
+    relative = "editor",
+    width = dims.total_width,
+    height = 1,
+    row = footer_row,
+    col = dims.col,
+    style = "minimal",
+    border = "rounded",
+    title = " Shortcuts ",
+    title_pos = "center",
+  })
+  api.nvim_win_set_option(footer_win, "wrap", false)
+  api.nvim_win_set_option(footer_win, "cursorline", false)
+  api.nvim_win_set_option(footer_win, "number", false)
+  api.nvim_win_set_option(footer_win, "relativenumber", false)
+  api.nvim_win_set_option(footer_win, "signcolumn", "no")
+
+  return tree_win, preview_win, footer_win, footer_buf
 end
 
 local function normalize_todos(raw)
@@ -290,8 +316,6 @@ function View:update_preview()
 
   api.nvim_buf_clear_namespace(self.preview_buf, self.ns, 0, -1)
   api.nvim_buf_set_option(self.preview_buf, "modifiable", true)
-  table.insert(lines, "")
-  table.insert(lines, instructions)
   api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, vim.list_extend(vim.deepcopy(header), lines))
   api.nvim_buf_set_option(self.preview_buf, "modifiable", false)
   local ft = path and vim.filetype.match({ filename = path }) or nil
@@ -347,8 +371,6 @@ function View:refresh()
   for i = #header, 1, -1 do
     table.insert(lines, 1, header[i])
   end
-  table.insert(lines, "")
-  table.insert(lines, instructions)
 
   api.nvim_buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
