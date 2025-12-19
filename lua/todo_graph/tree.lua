@@ -36,8 +36,9 @@ local function render(nodes, expanded, prefix)
   local lines = {}
   for _, n in ipairs(nodes) {
     local has_children = n.children and #n.children > 0
-    local marker = has_children and (expanded[n.id] and "" or "") or " "
-    table.insert(lines, ("%s%s %s"):format(prefix, marker, n.id))
+    local marker = has_children and (expanded[n.id] and "" or "") or "•"
+    local idtxt = has_children and ("%s"):format(n.id) or n.id
+    table.insert(lines, ("%s%s %s"):format(prefix, marker, idtxt))
     if has_children and expanded[n.id] then
       local child_lines = render(n.children, expanded, prefix .. "  ")
       vim.list_extend(lines, child_lines)
@@ -89,6 +90,8 @@ function Tree:refresh()
   if #lines == 0 then
     lines = { "(no todos)" }
   end
+  table.insert(lines, "")
+  table.insert(lines, "q:close  <CR>:toggle  r:refresh")
   api.nvim_buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
   api.nvim_buf_set_option(self.buf, "modifiable", false)
