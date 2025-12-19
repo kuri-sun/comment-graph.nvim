@@ -394,8 +394,11 @@ function View:refresh()
 
 	local header = {}
 	local new_index = {}
-	for line_num, id in pairs(self.line_to_id) do
-		new_index[line_num + #header] = id
+	for line_num = 1, #lines do
+		local id = self.line_to_id[line_num]
+		if id then
+			new_index[line_num + #header] = id
+		end
 	end
 	self.line_to_id = new_index
 	for i = #header, 1, -1 do
