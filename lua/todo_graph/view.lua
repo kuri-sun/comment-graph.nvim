@@ -7,30 +7,30 @@ View.__index = View
 local instructions = "q: close   r: refresh   Enter: toggle"
 
 local function buf_set_option(buf, name, value)
-  if api.nvim_set_option_value then
-    api.nvim_set_option_value(name, value, { buf = buf })
-  else
-    api.nvim_buf_set_option(buf, name, value)
-  end
+	if api.nvim_set_option_value then
+		api.nvim_set_option_value(name, value, { buf = buf })
+	else
+		api.nvim_buf_set_option(buf, name, value)
+	end
 end
 
 local function win_set_option(win, name, value)
-  if api.nvim_set_option_value then
-    api.nvim_set_option_value(name, value, { win = win })
-  else
-    api.nvim_win_set_option(win, name, value)
-  end
+	if api.nvim_set_option_value then
+		api.nvim_set_option_value(name, value, { win = win })
+	else
+		api.nvim_win_set_option(win, name, value)
+	end
 end
 
 local function is_list(tbl)
-  if vim.islist then
-    return vim.islist(tbl)
-  end
-  return vim.tbl_islist(tbl)
+	if vim.islist then
+		return vim.islist(tbl)
+	end
+	return vim.tbl_islist(tbl)
 end
 
 local function file_exists(path)
-  return path and vim.loop.fs_stat(path) ~= nil
+	return path and vim.loop.fs_stat(path) ~= nil
 end
 
 local function graph_exists(root)
@@ -160,18 +160,18 @@ local function open_windows(tree_buf, preview_buf)
 end
 
 local function normalize_todos(raw)
-  if type(raw) ~= "table" then
-    return {}
-  end
-  -- If already a map, normalize values; if it's a list, re-map by id.
-  local list = is_list(raw)
-  local todos = {}
-  if list then
-    for _, t in ipairs(raw) do
-      local id = t and (t.id or t.ID)
-      if type(id) == "string" then
-        todos[id] = {
-          id = id,
+	if type(raw) ~= "table" then
+		return {}
+	end
+	-- If already a map, normalize values; if it's a list, re-map by id.
+	local list = is_list(raw)
+	local todos = {}
+	if list then
+		for _, t in ipairs(raw) do
+			local id = t and (t.id or t.ID)
+			if type(id) == "string" then
+				todos[id] = {
+					id = id,
 					file = t.file or t.File,
 					line = t.line or t.Line,
 				}
@@ -264,11 +264,11 @@ local function render_tree(roots, children, todos, expanded, line_index)
 		if todo and todo.file then
 			loc = string.format(" (%s:%s)", todo.file, todo.line or "?")
 		end
-    local kids = children[id] or {}
-    local has_children = #kids > 0
-    if expanded[id] == nil then
-      expanded[id] = true
-    end
+		local kids = children[id] or {}
+		local has_children = #kids > 0
+		if expanded[id] == nil then
+			expanded[id] = true
+		end
 		local marker = has_children and (expanded[id] and "[-]" or "[+]") or "   "
 		local prefix = string.rep("  ", depth)
 		table.insert(lines, string.format("%s%s %s%s", prefix, marker, id, loc))
@@ -397,20 +397,8 @@ function View:refresh()
 	local roots, children, todos = build_index(graph)
 	self.todos = todos
 	self.line_to_id = {}
-	local lines = render_tree(roots, children, todos, self.expanded, self.line_to_id)
-
-	local header = {}
-	local new_index = {}
-	for line_num = 1, #lines do
-		local id = self.line_to_id[line_num]
-		if id then
-			new_index[line_num + #header] = id
-		end
-	end
-	self.line_to_id = new_index
-	for i = #header, 1, -1 do
-		table.insert(lines, 1, header[i])
-	end
+	local line_index = self.line_to_id
+	local lines = render_tree(roots, children, todos, self.expanded, line_index)
 
 	buf_set_option(self.buf, "modifiable", true)
 	api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
