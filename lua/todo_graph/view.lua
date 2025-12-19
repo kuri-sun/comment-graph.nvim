@@ -151,18 +151,6 @@ local function render_tree(roots, children, todos, expanded, line_index)
 	return lines
 end
 
-local function resolve_path(root, path)
-	-- Try absolute, then root-relative resolution for the given path.
-	if not path or path == "" then
-		return nil
-	end
-	if vim.fn.filereadable(path) == 1 or vim.fn.isdirectory(path) == 1 then
-		return path
-	end
-	root = root or "."
-	return vim.fn.fnamemodify(root .. "/" .. path, ":p")
-end
-
 function View:update_preview()
 	-- Sync the preview buffer with the file for the currently selected tree row.
 	-- Clamp the target line to file bounds so stale line numbers still highlight.
