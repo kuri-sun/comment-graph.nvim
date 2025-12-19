@@ -140,7 +140,7 @@ local function open_windows(tree_buf, preview_buf)
 	)
 	buf_set_option(footer_buf, "modifiable", false)
 
-	local footer_row = dims.row + dims.height + 1
+	local footer_row = dims.row + dims.height + 2
 	local footer_win = api.nvim_open_win(footer_buf, false, {
 		relative = "editor",
 		width = dims.total_width,
@@ -149,7 +149,6 @@ local function open_windows(tree_buf, preview_buf)
 		col = dims.col,
 		style = "minimal",
 		border = "rounded",
-		title_pos = "center",
 	})
 	win_set_option(footer_win, "wrap", false)
 	win_set_option(footer_win, "cursorline", false)
