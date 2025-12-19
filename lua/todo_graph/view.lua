@@ -311,7 +311,7 @@ function View:refresh()
 
   local dir_display = self.dir or vim.loop.cwd() or "."
   dir_display = vim.fn.fnamemodify(dir_display, ":~")
-  local header = { "TODO Graph", "Dir: " .. dir_display, "" }
+  local header = { "Dir: " .. dir_display, "" }
   local new_index = {}
   for line_num, id in pairs(self.line_to_id) do
     new_index[line_num + #header] = id
