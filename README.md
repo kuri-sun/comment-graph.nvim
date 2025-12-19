@@ -22,6 +22,7 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
   config = function()
     require("todo_graph").setup({
       -- bin = "/absolute/path/to/todo-graph", -- optional override
+      -- keywords = { "TODO", "FIXME", "NOTE" }, -- optional override (defaults to TODO,FIXME,NOTE,WARNING,HACK,CHANGED,REVIEW)
     })
   end,
 }
@@ -34,10 +35,6 @@ The plugin will try these locations for the binary (in order):
 
 ## Commands
 
-- `:TodoGraphInfo` — runs `todo-graph --version` using the resolver.
-- `:TodoGraphGenerate [dir]` — run `todo-graph generate` (optional dir override).
-- `:TodoGraphCheck [dir]` — run `todo-graph check` (optional dir override).
-- `:TodoGraphFix [dir]` — run `todo-graph fix` (optional dir override).
-- `:TodoGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; generates JSON to a temp file).
+- `:TodoGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; generates JSON to a temp file). Honors `keywords` from setup or per-command dir override.
 
 More commands and UI are coming next.

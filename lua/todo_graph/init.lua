@@ -4,6 +4,7 @@ local util = require("todo_graph.util")
 
 local config = {
   bin = nil, -- user override
+  keywords = nil, -- optional list or comma-separated string
 }
 
 local function path_exists(path)
@@ -49,6 +50,14 @@ local function run_cli(subcommand, opts)
   local bin = resolve_bin()
   local dir = opts.dir or vim.loop.cwd() or "."
   local args = { bin, subcommand, "--dir", dir }
+  local keywords = opts.keywords or config.keywords
+  if type(keywords) == "string" then
+    keywords = vim.split(keywords, ",", { trimempty = true, plain = true })
+  end
+  if keywords and #keywords > 0 then
+    table.insert(args, "--keywords")
+    table.insert(args, table.concat(keywords, ","))
+  end
   if opts.args then
     for _, a in ipairs(opts.args) do
       table.insert(args, a)
