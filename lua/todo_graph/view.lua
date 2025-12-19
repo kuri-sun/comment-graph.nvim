@@ -4,6 +4,15 @@ local todo = require("todo_graph")
 local View = {}
 View.__index = View
 
+local function file_exists(path)
+  return path and vim.loop.fs_stat(path) ~= nil
+end
+
+local function graph_exists(root)
+  local base = vim.fn.fnamemodify(root or ".", ":p")
+  return file_exists(base .. "/.todo-graph") or file_exists(base .. "/.todo-graph.json")
+end
+
 local function create_buf()
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(buf, "bufhidden", "wipe")
@@ -295,6 +304,26 @@ function View:update_preview()
 end
 
 function View:refresh()
+  -- normalize root to absolute
+  self.dir = vim.fn.fnamemodify(self.dir or (vim.loop.cwd() or "."), ":p")
+
+  if not graph_exists(self.dir) then
+    local msg = {
+      "No .todo-graph or .todo-graph.json found.",
+      "Root: " .. vim.fn.fnamemodify(self.dir, ":~"),
+    }
+    self.line_to_id = {}
+    self.todos = {}
+    api.nvim_buf_set_option(self.buf, "modifiable", true)
+    api.nvim_buf_set_lines(self.buf, 0, -1, false, msg)
+    api.nvim_buf_set_option(self.buf, "modifiable", false)
+    api.nvim_buf_set_option(self.preview_buf, "modifiable", true)
+    api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, { "(no graph to preview)" })
+    api.nvim_buf_set_option(self.preview_buf, "modifiable", false)
+    set_preview_title(self.preview_win, "No graph")
+    return
+  end
+
   local graph, err = todo.graph({ dir = self.dir })
   if err then
     api.nvim_buf_set_option(self.buf, "modifiable", true)
@@ -308,9 +337,7 @@ function View:refresh()
   self.line_to_id = {}
   local lines = render_tree(roots, children, todos, self.expanded, self.line_to_id)
 
-  local dir_display = self.dir or vim.loop.cwd() or "."
-  dir_display = vim.fn.fnamemodify(dir_display, ":~")
-  local header = { "Dir: " .. dir_display, "" }
+  local header = {}
   local new_index = {}
   for line_num, id in pairs(self.line_to_id) do
     new_index[line_num + #header] = id
