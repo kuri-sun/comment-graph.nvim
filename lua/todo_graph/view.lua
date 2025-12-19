@@ -287,6 +287,7 @@ local function render_tree(roots, children, todos, expanded, line_index)
 end
 
 local function resolve_path(root, path)
+  -- Try absolute, then root-relative resolution for the given path.
   if not path or path == "" then
     return nil
   end
@@ -298,6 +299,8 @@ local function resolve_path(root, path)
 end
 
 function View:update_preview()
+  -- Sync the preview buffer with the file for the currently selected tree row.
+  -- Clamp the target line to file bounds so stale line numbers still highlight.
   if not (self.preview_buf and api.nvim_buf_is_valid(self.preview_buf)) then
     return
   end
@@ -351,6 +354,8 @@ function View:update_preview()
 end
 
 function View:refresh()
+  -- Regenerate graph (temp JSON) and re-render panes; bail with a friendly
+  -- message if no .todo-graph exists at the root.
   local cwd = uv.cwd and uv.cwd() or vim.fn.getcwd()
   self.dir = vim.fn.fnamemodify(self.dir or (cwd or "."), ":p")
 
@@ -401,18 +406,21 @@ function View:toggle_line()
 end
 
 local function focus_tree(view)
+  -- Set focus to tree window if valid.
   if view.win and api.nvim_win_is_valid(view.win) then
     api.nvim_set_current_win(view.win)
   end
 end
 
 local function focus_preview(view)
+  -- Set focus to preview window if valid.
   if view.preview_win and api.nvim_win_is_valid(view.preview_win) then
     api.nvim_set_current_win(view.preview_win)
   end
 end
 
 local function close_all(view)
+  -- Close tree, preview, and footer windows.
   for _, win in ipairs({ view.win, view.preview_win, view.footer_win }) do
     if win and api.nvim_win_is_valid(win) then
       api.nvim_win_close(win, true)
@@ -421,6 +429,7 @@ local function close_all(view)
 end
 
 local function set_keymaps(view)
+  -- Wire up core shortcuts across both panes.
   local function map(buf, lhs, fn)
     api.nvim_buf_set_keymap(buf, "n", lhs, "", {
       nowait = true,
@@ -472,6 +481,7 @@ local function set_keymaps(view)
 end
 
 function View.open(opts)
+  -- Entrypoint used by the user command; sets up windows and initial render.
   opts = opts or {}
   local view = setmetatable({}, View)
   view.dir = opts.dir
