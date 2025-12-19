@@ -13,12 +13,10 @@ local instructions = "q: close   r: refresh   Enter: toggle"
 local hl_defined = false
 
 local function get_icons()
-	local cfg = todo.get_config and todo.get_config() or {}
-	local icons = cfg.icons or {}
 	return {
-		expanded = icons.expanded or " ",
-		collapsed = icons.collapsed or " ",
-		leaf = icons.leaf or " ",
+		expanded = " ",
+		collapsed = " ",
+		leaf = " ",
 	}
 end
 

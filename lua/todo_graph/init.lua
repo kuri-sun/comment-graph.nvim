@@ -5,11 +5,6 @@ local util = require("todo_graph.util")
 local config = {
 	bin = nil, -- user override
 	keywords = nil, -- optional list or comma-separated string
-	icons = {
-		expanded = " ",
-		collapsed = " ",
-		leaf = "  ",
-	},
 }
 
 local function path_exists(path)
