@@ -82,7 +82,9 @@ end
 function Tree:refresh()
   local nodes, err = todo.tree({ dir = self.dir })
   if err then
-    vim.notify(err, vim.log.levels.ERROR)
+    api.nvim_buf_set_option(self.buf, "modifiable", true)
+    api.nvim_buf_set_lines(self.buf, 0, -1, false, { "Error:", "  " .. err })
+    api.nvim_buf_set_option(self.buf, "modifiable", false)
     return
   end
   nodes = nodes or {}
