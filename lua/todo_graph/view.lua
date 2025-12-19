@@ -336,6 +336,8 @@ function View:update_preview()
 			local total = #data
 			if lnum >= 1 and lnum <= total then
 				self.highlight_line = lnum - 1
+			elseif total > 0 then
+				self.highlight_line = total - 1
 			end
 		end
 	else
