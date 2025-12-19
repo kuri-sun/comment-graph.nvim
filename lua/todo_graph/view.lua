@@ -412,6 +412,9 @@ local function set_keymaps(view)
       if view.preview_win and api.nvim_win_is_valid(view.preview_win) then
         api.nvim_win_close(view.preview_win, true)
       end
+      if view.footer_win and api.nvim_win_is_valid(view.footer_win) then
+        api.nvim_win_close(view.footer_win, true)
+      end
     end,
   })
   api.nvim_buf_set_keymap(view.preview_buf, "n", "q", "", {
@@ -423,6 +426,9 @@ local function set_keymaps(view)
       end
       if view.preview_win and api.nvim_win_is_valid(view.preview_win) then
         api.nvim_win_close(view.preview_win, true)
+      end
+      if view.footer_win and api.nvim_win_is_valid(view.footer_win) then
+        api.nvim_win_close(view.footer_win, true)
       end
     end,
   })
@@ -494,7 +500,7 @@ function View.open(opts)
   view.dir = opts.dir
   view.buf = create_buf()
   view.preview_buf = create_preview_buf()
-  view.win, view.preview_win = open_windows(view.buf, view.preview_buf)
+  view.win, view.preview_win, view.footer_win, view.footer_buf = open_windows(view.buf, view.preview_buf)
   view.expanded = {}
   view.line_to_id = {}
   view.ns = api.nvim_create_namespace("todo_graph_view")
