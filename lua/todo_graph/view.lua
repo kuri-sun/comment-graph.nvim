@@ -244,11 +244,7 @@ function View:update_preview()
   local path = resolve_path(self.dir, todo.file)
   local lnum = tonumber(todo.line) or 1
   self.highlight_line = nil
-  local header = {
-    "ID: " .. id,
-    "File: " .. (path and vim.fn.fnamemodify(path, ":~:.") or (todo.file or "(unknown)")),
-    "",
-  }
+  local header = {}
 
   local lines
   if path and vim.fn.filereadable(path) == 1 then
