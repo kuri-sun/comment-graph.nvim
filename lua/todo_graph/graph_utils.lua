@@ -42,6 +42,7 @@ function M.normalize_todos(raw)
           id = id,
           file = t.file or t.File,
           line = t.line or t.Line,
+          keyword = t.keyword or t.Keyword,
         }
       end
     end
@@ -52,6 +53,7 @@ function M.normalize_todos(raw)
           id = id,
           file = t.file or t.File,
           line = t.line or t.Line,
+          keyword = t.keyword or t.Keyword,
         }
       end
     end
