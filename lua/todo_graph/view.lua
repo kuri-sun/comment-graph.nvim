@@ -4,6 +4,8 @@ local todo = require("todo_graph")
 local View = {}
 View.__index = View
 
+local instructions = "q: close   r: refresh   <CR>: toggle   Tab: preview   S-Tab: tree"
+
 local function file_exists(path)
   return path and vim.loop.fs_stat(path) ~= nil
 end
@@ -288,6 +290,8 @@ function View:update_preview()
 
   api.nvim_buf_clear_namespace(self.preview_buf, self.ns, 0, -1)
   api.nvim_buf_set_option(self.preview_buf, "modifiable", true)
+  table.insert(lines, "")
+  table.insert(lines, instructions)
   api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, vim.list_extend(vim.deepcopy(header), lines))
   api.nvim_buf_set_option(self.preview_buf, "modifiable", false)
   local ft = path and vim.filetype.match({ filename = path }) or nil
@@ -343,6 +347,8 @@ function View:refresh()
   for i = #header, 1, -1 do
     table.insert(lines, 1, header[i])
   end
+  table.insert(lines, "")
+  table.insert(lines, instructions)
 
   api.nvim_buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
