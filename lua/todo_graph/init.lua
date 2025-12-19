@@ -84,4 +84,29 @@ function M.fix(opts)
   return run_cli("fix", opts)
 end
 
+-- Generate a fresh graph as JSON (written to a temp file) and return decoded table.
+-- Does not mutate the user's .todo-graph because output is redirected to a temp path.
+function M.graph(opts)
+  opts = opts or {}
+  local dir = opts.dir
+  local tmp = vim.fn.tempname() .. ".json"
+  local _, err = run_cli("generate", {
+    dir = dir,
+    args = { "--format", "json", "--output", tmp },
+  })
+  if err then
+    return nil, err
+  end
+  local data = vim.fn.readfile(tmp)
+  vim.fn.delete(tmp)
+  local ok, decoded = pcall(vim.json.decode, table.concat(data, "\n"))
+  if not ok then
+    return nil, "failed to decode todo-graph output"
+  end
+  if type(decoded) ~= "table" then
+    return nil, "unexpected todo-graph output"
+  end
+  return decoded, nil
+end
+
 return M
