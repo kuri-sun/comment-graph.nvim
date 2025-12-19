@@ -276,14 +276,11 @@ function View:update_preview()
     if not ok then
       lines = { "(failed to read file)" }
     else
+      lines = data
       local total = #data
-      local start = math.max(1, lnum - 8)
-      local finish = math.min(total, lnum + 8)
-      lines = {}
-      for i = start, finish do
-        lines[#lines + 1] = data[i]
+      if lnum >= 1 and lnum <= total then
+        self.highlight_line = lnum - 1
       end
-      self.highlight_line = (lnum - start)
     end
   else
     lines = { "(file not found)" }
