@@ -78,6 +78,26 @@ local function parse_view(output)
   return roots
 end
 
+local function parse_tree(output)
+  local root = { id = "ROOT", children = {}, level = 0 }
+  local stack = { root }
+  for line in output:gmatch("[^\r\n]+") do
+    local leading = line:match("^(%s*)")
+    local depth = math.floor(#leading / 2)
+    local id = line:match("%- %[%] ([^%s]+)")
+    if id then
+      local node = { id = id, children = {}, line = line, level = depth }
+      while #stack > depth + 1 do
+        table.remove(stack)
+      end
+      local parent = stack[#stack] or root
+      table.insert(parent.children, node)
+      table.insert(stack, node)
+    end
+  end
+  return root.children
+end
+
 function M.setup(opts)
   config = vim.tbl_extend("force", config, opts or {})
 end
@@ -92,6 +112,14 @@ function M.roots(opts)
     return nil, err
   end
   return parse_view(out), nil
+end
+
+function M.tree(opts)
+  local out, err = run_view(vim.tbl_extend("force", { roots_only = false }, opts or {}))
+  if err then
+    return nil, err
+  end
+  return parse_tree(out), nil
 end
 
 return M

@@ -8,6 +8,7 @@ Early scaffold with basic UI:
 - Resolves the `todo-graph` binary (override, then `./node_modules/.bin`, then PATH).
 - `:TodoGraphInfo` checks the binary version.
 - `:TodoGraphRoots [dir]` opens a small window showing roots (`todo-graph view --roots-only`).
+- `:TodoGraphView [dir]` shows a full tree (expand/collapse with `<CR>`, refresh with `r`, close with `q`).
 
 ## Installation
 
@@ -33,5 +34,6 @@ The plugin will try these locations for the binary (in order):
 
 - `:TodoGraphInfo` — runs `todo-graph --version` using the resolver.
 - `:TodoGraphRoots [dir]` — roots-only list in a floating window.
+- `:TodoGraphView [dir]` — full tree with expand/collapse in a floating window.
 
 More commands and UI are coming next.
