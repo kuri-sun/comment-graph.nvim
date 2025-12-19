@@ -9,6 +9,8 @@ local function create_buf()
   api.nvim_buf_set_option(buf, "bufhidden", "wipe")
   api.nvim_buf_set_option(buf, "filetype", "todo-graph")
   api.nvim_buf_set_option(buf, "modifiable", false)
+  api.nvim_buf_set_option(buf, "buftype", "nofile")
+  api.nvim_buf_set_option(buf, "swapfile", false)
   return buf
 end
 
@@ -66,6 +68,13 @@ function Tree:new(opts)
       t:refresh()
     end,
   })
+  api.nvim_buf_set_keymap(t.buf, "n", "<CR>", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      t:toggle_line()
+    end,
+  })
   return t
 end
 
@@ -103,13 +112,6 @@ end
 return {
   open = function(opts)
     local t = Tree:new(opts or {})
-    api.nvim_buf_set_keymap(t.buf, "n", "<CR>", "", {
-      nowait = true,
-      noremap = true,
-      callback = function()
-        t:toggle_line()
-      end,
-    })
     t:refresh()
   end,
 }
