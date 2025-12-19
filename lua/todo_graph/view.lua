@@ -1,5 +1,7 @@
 local api = vim.api
 local todo = require("todo_graph")
+local ui = require("todo_graph.ui")
+local graph_utils = require("todo_graph.graph_utils")
 
 local View = {}
 View.__index = View
@@ -7,56 +9,6 @@ View.__index = View
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
 local instructions = "q: close   r: refresh   Enter: toggle"
-
--- option helpers (handle newer nvim_set_option_value when available)
--- Tiny shims to support both nvim_set_option_value and older APIs.
-local function buf_set_option(buf, name, value)
-  if api.nvim_set_option_value then
-    return api.nvim_set_option_value(name, value, { buf = buf })
-  end
-  return api.nvim_buf_set_option(buf, name, value)
-end
-
-local function win_set_option(win, name, value)
-  if api.nvim_set_option_value then
-    return api.nvim_set_option_value(name, value, { win = win })
-  end
-  return api.nvim_win_set_option(win, name, value)
-end
-
--- Backward-compatible list detector.
-local function is_list(tbl)
-  if vim.islist then
-    return vim.islist(tbl)
-  end
-  return vim.tbl_islist(tbl)
-end
-
--- filesystem helpers
--- Safe fs stat helper that works on both vim.uv and vim.loop.
-local function file_exists(path)
-  return path and uv.fs_stat(path) ~= nil
-end
-
--- Does a .todo-graph or .todo-graph.json exist at the root?
-local function graph_exists(root)
-  local base = vim.fn.fnamemodify(root or ".", ":p")
-  return file_exists(base .. "/.todo-graph") or file_exists(base .. "/.todo-graph.json")
-end
-
--- buffers/windows
--- Scratch buffer with sane defaults for floating UI.
-local function create_buf(filetype)
-  local buf = api.nvim_create_buf(false, true)
-  buf_set_option(buf, "bufhidden", "wipe")
-  buf_set_option(buf, "buftype", "nofile")
-  buf_set_option(buf, "swapfile", false)
-  buf_set_option(buf, "modifiable", false)
-  if filetype then
-    buf_set_option(buf, "filetype", filetype)
-  end
-  return buf
-end
 
 -- Compute layout sizes/positions for tree, preview, and footer.
 local function layout()
@@ -117,26 +69,26 @@ local function open_windows(tree_buf, preview_buf)
   })
 
   for _, win in ipairs({ tree_win, preview_win }) do
-    win_set_option(win, "number", false)
-    win_set_option(win, "relativenumber", false)
-    win_set_option(win, "signcolumn", "no")
-    win_set_option(win, "foldcolumn", "0")
-    win_set_option(win, "wrap", false)
+    ui.win_set_option(win, "number", false)
+    ui.win_set_option(win, "relativenumber", false)
+    ui.win_set_option(win, "signcolumn", "no")
+    ui.win_set_option(win, "foldcolumn", "0")
+    ui.win_set_option(win, "wrap", false)
   end
-  win_set_option(tree_win, "cursorline", true)
-  win_set_option(preview_win, "cursorline", false)
-  win_set_option(preview_win, "number", true)
+  ui.win_set_option(tree_win, "cursorline", true)
+  ui.win_set_option(preview_win, "cursorline", false)
+  ui.win_set_option(preview_win, "number", true)
 
   set_preview_title(preview_win, "Preview")
 
   -- footer window for key hints
   local footer_buf = api.nvim_create_buf(false, true)
-  buf_set_option(footer_buf, "bufhidden", "wipe")
-  buf_set_option(footer_buf, "buftype", "nofile")
-  buf_set_option(footer_buf, "swapfile", false)
-  buf_set_option(footer_buf, "modifiable", true)
+  ui.buf_set_option(footer_buf, "bufhidden", "wipe")
+  ui.buf_set_option(footer_buf, "buftype", "nofile")
+  ui.buf_set_option(footer_buf, "swapfile", false)
+  ui.buf_set_option(footer_buf, "modifiable", true)
   api.nvim_buf_set_lines(footer_buf, 0, -1, false, { instructions })
-  buf_set_option(footer_buf, "modifiable", false)
+  ui.buf_set_option(footer_buf, "modifiable", false)
 
   local footer_row = dims.row + dims.height + 2
   local footer_win = api.nvim_open_win(footer_buf, false, {
@@ -148,11 +100,11 @@ local function open_windows(tree_buf, preview_buf)
     style = "minimal",
     border = "rounded",
   })
-  win_set_option(footer_win, "wrap", false)
-  win_set_option(footer_win, "cursorline", false)
-  win_set_option(footer_win, "number", false)
-  win_set_option(footer_win, "relativenumber", false)
-  win_set_option(footer_win, "signcolumn", "no")
+  ui.win_set_option(footer_win, "wrap", false)
+  ui.win_set_option(footer_win, "cursorline", false)
+  ui.win_set_option(footer_win, "number", false)
+  ui.win_set_option(footer_win, "relativenumber", false)
+  ui.win_set_option(footer_win, "signcolumn", "no")
 
   return tree_win, preview_win, footer_win, footer_buf
 end
@@ -209,47 +161,10 @@ end
 
 -- Build roots and adjacency for the tree render.
 local function build_index(g)
-  local todos = normalize_todos(g.todos or {})
-  local edges = normalize_edges(g.edges or {})
-
-  local children = {}
-  local indegree = {}
-  for id in pairs(todos) do
-    indegree[id] = 0
-    children[id] = {}
-  end
-
-  for _, e in ipairs(edges) do
-    local from = e and e.from
-    local to = e and e.to
-    if type(from) == "string" and type(to) == "string" then
-      children[from] = children[from] or {}
-      table.insert(children[from], to)
-      indegree[to] = (indegree[to] or 0) + 1
-      if indegree[from] == nil then
-        indegree[from] = 0
-      end
-    end
-  end
-
-  for _, list in pairs(children) do
-    table.sort(list)
-  end
-
-  local roots = {}
-  for id, deg in pairs(indegree) do
-    if deg == 0 then
-      table.insert(roots, id)
-    end
-  end
-  if #roots == 0 then
-    for id in pairs(children) do
-      table.insert(roots, id)
-    end
-  end
-  table.sort(roots)
-
-  return roots, children, todos
+  return graph_utils.build_index({
+    todos = graph_utils.normalize_todos(g.todos or {}),
+    edges = graph_utils.normalize_edges(g.edges or {}),
+  })
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
