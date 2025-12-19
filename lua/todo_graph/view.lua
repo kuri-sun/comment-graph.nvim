@@ -51,6 +51,8 @@ local function open_windows(tree_buf, preview_buf)
     row = dims.row,
     col = dims.col,
     border = "rounded",
+    title = " TODO Graph ",
+    title_pos = "center",
     style = "minimal",
   })
 
@@ -61,6 +63,8 @@ local function open_windows(tree_buf, preview_buf)
     row = dims.row,
     col = dims.col + dims.tree_width + dims.gap,
     border = "rounded",
+    title = " Preview ",
+    title_pos = "center",
     style = "minimal",
   })
 
