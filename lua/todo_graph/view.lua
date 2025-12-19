@@ -388,7 +388,26 @@ local function set_keymaps(view)
       end
     end,
   })
+  api.nvim_buf_set_keymap(view.preview_buf, "n", "q", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      if api.nvim_win_is_valid(view.win) then
+        api.nvim_win_close(view.win, true)
+      end
+      if view.preview_win and api.nvim_win_is_valid(view.preview_win) then
+        api.nvim_win_close(view.preview_win, true)
+      end
+    end,
+  })
   api.nvim_buf_set_keymap(view.buf, "n", "r", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      view:refresh()
+    end,
+  })
+  api.nvim_buf_set_keymap(view.preview_buf, "n", "r", "", {
     nowait = true,
     noremap = true,
     callback = function()
