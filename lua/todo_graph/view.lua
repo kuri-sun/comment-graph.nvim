@@ -12,89 +12,99 @@ local instructions = "q: close   r: refresh   Enter: toggle"
 
 local hl_defined = false
 
+local function get_icons()
+	local cfg = todo.get_config and todo.get_config() or {}
+	local icons = cfg.icons or {}
+	return {
+		expanded = icons.expanded or " ",
+		collapsed = icons.collapsed or " ",
+		leaf = icons.leaf or " ",
+	}
+end
+
 local function ensure_highlights()
-  if hl_defined then
-    return
-  end
-  -- Use existing groups to stay theme-friendly.
-  vim.api.nvim_set_hl(0, "TodoGraphMarker", { link = "Comment", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
-  hl_defined = true
+	if hl_defined then
+		return
+	end
+	-- Use existing groups to stay theme-friendly.
+	vim.api.nvim_set_hl(0, "TodoGraphMarker", { link = "Comment", default = true })
+	vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
+	vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
+	vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
+	hl_defined = true
 end
 
 local function trim_comment_prefix(line)
-  local prefixes = {
-    "^%s*//+%s*",
-    "^%s*#%s*",
-    "^%s*%-%-%s*",
-    "^%s*/%*+%s*",
-    "^%s*%*+%s*",
-    "^%s*{%/%*%s*",
-    "^%s*<!--%s*",
-  }
-  for _, pat in ipairs(prefixes) do
-    line = line:gsub(pat, "")
-  end
-  line = line:gsub("%s*%*/%s*$", "")
-  line = line:gsub("%s*-->%s*$", "")
-  return line
+	local prefixes = {
+		"^%s*//+%s*",
+		"^%s*#%s*",
+		"^%s*%-%-%s*",
+		"^%s*/%*+%s*",
+		"^%s*%*+%s*",
+		"^%s*{%/%*%s*",
+		"^%s*<!--%s*",
+	}
+	for _, pat in ipairs(prefixes) do
+		line = line:gsub(pat, "")
+	end
+	line = line:gsub("%s*%*/%s*$", "")
+	line = line:gsub("%s*-->%s*$", "")
+	return line
 end
 
 local function load_file_lines(cache, path)
-  if cache[path] ~= nil then
-    return cache[path]
-  end
-  if vim.fn.filereadable(path) ~= 1 then
-    cache[path] = false
-    return nil
-  end
-  local ok, data = pcall(vim.fn.readfile, path)
-  if not ok then
-    cache[path] = false
-    return nil
-  end
-  cache[path] = data
-  return data
+	if cache[path] ~= nil then
+		return cache[path]
+	end
+	if vim.fn.filereadable(path) ~= 1 then
+		cache[path] = false
+		return nil
+	end
+	local ok, data = pcall(vim.fn.readfile, path)
+	if not ok then
+		cache[path] = false
+		return nil
+	end
+	cache[path] = data
+	return data
 end
 
 local function todo_label(view, todo_item)
-  if not todo_item or not todo_item.file then
-    return nil, nil
-  end
-  local path = graph_utils.resolve_path(view.dir, todo_item.file)
-  if not path then
-    return nil, nil
-  end
-  local lines = load_file_lines(view.file_cache, path)
-  if not lines then
-    return nil, nil
-  end
-  local lnum = tonumber(todo_item.line) or 1
-  local line = lines[lnum]
-  if not line then
-    return nil, nil
-  end
-  line = trim_comment_prefix(line)
-  line = line:gsub("^%s*", ""):gsub("%s*$", "")
-  if line == "" then
-    return nil, nil
-  end
+	if not todo_item or not todo_item.file then
+		return nil, nil
+	end
+	local path = graph_utils.resolve_path(view.dir, todo_item.file)
+	if not path then
+		return nil, nil
+	end
+	local lines = load_file_lines(view.file_cache, path)
+	if not lines then
+		return nil, nil
+	end
+	local lnum = tonumber(todo_item.line) or 1
+	local line = lines[lnum]
+	if not line then
+		return nil, nil
+	end
+	line = trim_comment_prefix(line)
+	line = line:gsub("^%s*", ""):gsub("%s*$", "")
+	if line == "" then
+		return nil, nil
+	end
 
-  local keyword, rest = line:match("^([A-Z][A-Z0-9_-]*)[:]%s*(.*)")
-  if not keyword then
-    keyword, rest = line:match("^([A-Z][A-Z0-9_-]*)%s+(.*)")
-  end
-  local label = line
-  if keyword then
-    if rest and rest ~= "" then
-      label = keyword .. ": " .. rest
-    else
-      label = keyword
-    end
-  end
-  return label, keyword
+	local keyword, rest = line:match("^([A-Z][A-Z0-9_-]*)[:]%s*(.*)")
+	if not keyword then
+		keyword, rest = line:match("^([A-Z][A-Z0-9_-]*)%s+(.*)")
+	end
+	local label = line
+	if keyword then
+		if rest and rest ~= "" then
+			label = keyword .. ": " .. rest
+		else
+			label = keyword
+		end
+	end
+	return label, keyword
 end
 
 -- Compute layout sizes/positions for tree, preview, and footer.
@@ -144,6 +154,17 @@ local function open_windows(tree_buf, preview_buf)
 		title_pos = "center",
 		style = "minimal",
 	})
+	-- Match picker-style focused line background.
+	ui.win_set_option(
+		tree_win,
+		"winhighlight",
+		table.concat({
+			"Normal:Normal",
+			"NormalNC:Normal",
+			"CursorLine:CursorLine",
+			"Search:CursorLine",
+		}, ",")
+	)
 
 	local preview_win = api.nvim_open_win(preview_buf, false, {
 		relative = "editor",
@@ -206,74 +227,89 @@ end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
 local function render_tree(view, roots, children, todos, expanded, line_index)
-  local lines = {}
-  local line_meta = {}
-  local function append_line(id, depth)
-    local todo_item = todos[id]
-    local loc = todo_item and todo_item.file or ""
-    if loc ~= "" and todo_item and todo_item.line then
-      loc = string.format("%s:%s", loc, todo_item.line)
-    end
-    local label, keyword = todo_label(view, todo_item)
-    if not label or label == "" then
-      label = id
-    end
-    local kids = children[id] or {}
-    local has_children = #kids > 0
-    if expanded[id] == nil then
-      expanded[id] = true
-    end
-    local marker = has_children and (expanded[id] and "[-]" or "[+]") or "   "
-    local prefix = string.rep("  ", depth)
-    if loc ~= "" then
-      table.insert(lines, string.format("%s%s %s %s", prefix, marker, loc, label))
-    else
-      table.insert(lines, string.format("%s%s %s", prefix, marker, label))
-    end
-    line_index[#lines] = id
-    line_meta[#lines] = { keyword = keyword }
-    if has_children and expanded[id] then
-      for _, child in ipairs(kids) do
-        append_line(child, depth + 1)
-      end
-    end
-  end
+	local lines = {}
+	local line_meta = {}
+	local icons = get_icons()
+	local function append_line(id, depth)
+		local todo_item = todos[id]
+		local loc = todo_item and todo_item.file or ""
+		if loc ~= "" and todo_item and todo_item.line then
+			loc = string.format("%s:%s", loc, todo_item.line)
+		end
+		local label, keyword = todo_label(view, todo_item)
+		if not label or label == "" then
+			label = id
+		end
+		local kids = children[id] or {}
+		local has_children = #kids > 0
+		if expanded[id] == nil then
+			expanded[id] = true
+		end
+		local marker
+		if has_children then
+			marker = expanded[id] and icons.expanded or icons.collapsed
+		else
+			marker = icons.leaf
+		end
+		local prefix = string.rep("  ", depth)
+		if loc ~= "" then
+			table.insert(lines, string.format("%s%s %s %s", prefix, marker, loc, label))
+		else
+			table.insert(lines, string.format("%s%s %s", prefix, marker, label))
+		end
+		line_index[#lines] = id
+		line_meta[#lines] = {
+			keyword = keyword,
+			marker_len = #marker,
+			prefix_len = #prefix,
+			has_loc = loc ~= "",
+		}
+		if has_children and expanded[id] then
+			for _, child in ipairs(kids) do
+				append_line(child, depth + 1)
+			end
+		end
+	end
 
-  for _, r in ipairs(roots) do
-    append_line(r, 0)
-  end
-  if #lines == 0 then
-    lines = { "(no TODOs found)" }
-  end
-  return lines, line_meta
+	for _, r in ipairs(roots) do
+		append_line(r, 0)
+	end
+	if #lines == 0 then
+		lines = { "(no TODOs found)" }
+	end
+	return lines, line_meta
 end
 
 local function highlight_tree(view, lines)
-  ensure_highlights()
-  api.nvim_buf_clear_namespace(view.buf, view.ns, 0, -1)
-  for idx, line in ipairs(lines) do
-    local meta = view.line_meta and view.line_meta[idx] or nil
-    local keyword = meta and meta.keyword or nil
-    local marker_end = line:find("] ")
-    local start_col = 1
-    if marker_end then
-      api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphMarker", idx - 1, 0, marker_end + 1)
-      start_col = marker_end + 2
-    else
-      start_col = (line:find("%S") or 1)
-    end
-    local loc_end = line:find("%s", start_col) or (#line + 1)
-    if loc_end > start_col then
-      api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphLoc", idx - 1, start_col - 1, loc_end - 1)
-    end
-    local search_from = loc_end + 1
-    if keyword and keyword ~= "" then
-      local kw_start, kw_end = line:find(keyword, search_from, true)
-      if kw_start and kw_end then
-        api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphKeyword", idx - 1, kw_start - 1, kw_end)
-      end
-    end
-  end
+	ensure_highlights()
+	api.nvim_buf_clear_namespace(view.buf, view.ns, 0, -1)
+	for idx, line in ipairs(lines) do
+		local meta = view.line_meta and view.line_meta[idx] or nil
+		local keyword = meta and meta.keyword or nil
+		local marker_len = meta and meta.marker_len or 0
+		local prefix_len = meta and meta.prefix_len or 0
+		local has_loc = meta and meta.has_loc
+		local marker_start = prefix_len
+		local marker_end = marker_start + marker_len
+		if marker_len > 0 then
+			api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphMarker", idx - 1, marker_start, marker_end)
+		end
+		local start_col = marker_end + 1
+		local loc_end = start_col
+		if has_loc then
+			loc_end = line:find("%s", start_col) or (#line + 1)
+			if loc_end > start_col then
+				api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphLoc", idx - 1, start_col - 1, loc_end - 1)
+			end
+		end
+		local search_from = (has_loc and loc_end + 1) or start_col
+		if keyword and keyword ~= "" then
+			local kw_start, kw_end = line:find(keyword, search_from, true)
+			if kw_start and kw_end then
+				api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphKeyword", idx - 1, kw_start - 1, kw_end)
+			end
+		end
+	end
 end
 
 function View:update_preview()
