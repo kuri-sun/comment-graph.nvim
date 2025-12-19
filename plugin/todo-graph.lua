@@ -42,7 +42,7 @@ end, { desc = "Run `todo-graph fix` to fill missing @todo-id placeholders (optio
 vim.api.nvim_create_user_command("TodoGraphView", function(opts)
   view.open({ dir = opts.fargs[1] })
 end, {
-  desc = "Show TODO graph tree (generate to temp JSON, expand/collapse with <CR>, refresh with r, close with q)",
+  desc = "Show TODO graph tree with preview (generate to temp JSON, expand/collapse with <CR>, refresh with r, close with q)",
   nargs = "?",
   complete = "dir",
 })
