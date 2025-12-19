@@ -400,8 +400,8 @@ function View.open(opts)
   opts = opts or {}
   local view = setmetatable({}, View)
   view.dir = opts.dir
-  view.buf = create_buf("todo-graph")
-  view.preview_buf = create_buf()
+  view.buf = ui.create_buf("todo-graph")
+  view.preview_buf = ui.create_buf()
   view.win, view.preview_win, view.footer_win, view.footer_buf = open_windows(view.buf, view.preview_buf)
   view.expanded = {}
   view.line_to_id = {}
