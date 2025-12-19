@@ -1,11 +1,26 @@
 local api = vim.api
 local todo = require("todo_graph")
-local ui = require("todo_graph.ui")
 
 local View = {}
 View.__index = View
 
 local instructions = "q: close   r: refresh   Enter: toggle"
+
+local function buf_set_option(buf, name, value)
+	if api.nvim_set_option_value then
+		api.nvim_set_option_value(name, value, { buf = buf })
+	else
+		api.nvim_buf_set_option(buf, name, value)
+	end
+end
+
+local function win_set_option(win, name, value)
+	if api.nvim_set_option_value then
+		api.nvim_set_option_value(name, value, { win = win })
+	else
+		api.nvim_win_set_option(win, name, value)
+	end
+end
 
 local function layout()
 	local total_width = math.max(80, math.floor(vim.o.columns * 0.9))
