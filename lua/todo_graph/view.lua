@@ -158,7 +158,7 @@ local function open_windows(tree_buf, preview_buf)
 end
 
 -- graph normalization
--- Normalize todos from map or list into a map keyed by id.
+  -- Normalize todos from map or list into a map keyed by id.
 local function normalize_todos(raw)
   if type(raw) ~= "table" then
     return {}
