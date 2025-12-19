@@ -78,16 +78,61 @@ local function open_windows(tree_buf, preview_buf)
   return tree_win, preview_win
 end
 
+local function normalize_todos(raw)
+  if type(raw) ~= "table" then
+    return {}
+  end
+  -- If already a map, normalize values; if it's a list, re-map by id.
+  local is_list = vim.tbl_islist(raw)
+  local todos = {}
+  if is_list then
+    for _, t in ipairs(raw) do
+      local id = t and (t.id or t.ID)
+      if type(id) == "string" then
+        todos[id] = {
+          id = id,
+          file = t.file or t.File,
+          line = t.line or t.Line,
+        }
+      end
+    end
+  else
+    for id, t in pairs(raw) do
+      if type(id) == "string" and type(t) == "table" then
+        todos[id] = {
+          id = id,
+          file = t.file or t.File,
+          line = t.line or t.Line,
+        }
+      end
+    end
+  end
+  return todos
+end
+
+local function normalize_edges(raw)
+  if type(raw) ~= "table" then
+    return {}
+  end
+  local edges = {}
+  for _, e in ipairs(raw) do
+    if type(e) == "table" then
+      local from = e.from or e.From
+      local to = e.to or e.To
+      if type(from) == "string" and type(to) == "string" then
+        table.insert(edges, { from = from, to = to })
+      end
+    end
+  end
+  return edges
+end
+
 local function build_index(g)
   local todos = g.todos or {}
-  if type(todos) ~= "table" then
-    todos = {}
-  end
+  todos = normalize_todos(todos)
 
   local edges = g.edges or {}
-  if type(edges) ~= "table" or not vim.tbl_islist(edges) then
-    edges = {}
-  end
+  edges = normalize_edges(edges)
 
   local children = {}
   local indegree = {}
@@ -97,11 +142,15 @@ local function build_index(g)
   end
 
   for _, e in ipairs(edges) do
-    children[e.from] = children[e.from] or {}
-    table.insert(children[e.from], e.to)
-    indegree[e.to] = (indegree[e.to] or 0) + 1
-    if indegree[e.from] == nil then
-      indegree[e.from] = 0
+    local from = e and e.from
+    local to = e and e.to
+    if type(from) == "string" and type(to) == "string" then
+      children[from] = children[from] or {}
+      table.insert(children[from], to)
+      indegree[to] = (indegree[to] or 0) + 1
+      if indegree[from] == nil then
+        indegree[from] = 0
+      end
     end
   end
 
