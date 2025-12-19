@@ -142,7 +142,7 @@ local function render_tree(roots, children, todos, expanded, line_index)
     if has_children and expanded[id] then
       for idx, child in ipairs(kids) do
         local child_last = idx == #kids
-        local next_prefix = { table.unpack(prefix_parts) }
+      local next_prefix = { unpack(prefix_parts) }
         if depth > 0 then
           table.insert(next_prefix, is_last and "   " or "|  ")
         end
