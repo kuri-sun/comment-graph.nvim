@@ -107,8 +107,9 @@ local function open_windows(tree_buf, preview_buf)
   local footer_buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_option(footer_buf, "bufhidden", "wipe")
   api.nvim_buf_set_option(footer_buf, "buftype", "nofile")
-  api.nvim_buf_set_option(footer_buf, "modifiable", false)
+  api.nvim_buf_set_option(footer_buf, "modifiable", true)
   api.nvim_buf_set_lines(footer_buf, 0, -1, false, { "q: close   r: refresh   <CR>: toggle   Tab: preview   S-Tab: tree" })
+  api.nvim_buf_set_option(footer_buf, "modifiable", false)
 
   local footer_row = dims.row + dims.height + 1
   local footer_win = api.nvim_open_win(footer_buf, false, {
