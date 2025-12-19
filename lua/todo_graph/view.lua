@@ -22,8 +22,15 @@ local function win_set_option(win, name, value)
   end
 end
 
+local function is_list(tbl)
+  if vim.islist then
+    return vim.islist(tbl)
+  end
+  return vim.tbl_islist(tbl)
+end
+
 local function file_exists(path)
-	return path and vim.loop.fs_stat(path) ~= nil
+  return path and vim.loop.fs_stat(path) ~= nil
 end
 
 local function graph_exists(root)
@@ -154,18 +161,18 @@ local function open_windows(tree_buf, preview_buf)
 end
 
 local function normalize_todos(raw)
-	if type(raw) ~= "table" then
-		return {}
-	end
-	-- If already a map, normalize values; if it's a list, re-map by id.
-	local is_list = vim.tbl_islist(raw)
-	local todos = {}
-	if is_list then
-		for _, t in ipairs(raw) do
-			local id = t and (t.id or t.ID)
-			if type(id) == "string" then
-				todos[id] = {
-					id = id,
+  if type(raw) ~= "table" then
+    return {}
+  end
+  -- If already a map, normalize values; if it's a list, re-map by id.
+  local list = is_list(raw)
+  local todos = {}
+  if list then
+    for _, t in ipairs(raw) do
+      local id = t and (t.id or t.ID)
+      if type(id) == "string" then
+        todos[id] = {
+          id = id,
 					file = t.file or t.File,
 					line = t.line or t.Line,
 				}
