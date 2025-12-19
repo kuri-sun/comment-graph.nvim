@@ -5,9 +5,11 @@ local View = {}
 View.__index = View
 
 local uv = vim.uv or vim.loop
+-- Footer hint text shown in the shortcuts row.
 local instructions = "q: close   r: refresh   Enter: toggle"
 
 -- option helpers (handle newer nvim_set_option_value when available)
+-- Tiny shims to support both nvim_set_option_value and older APIs.
 local function buf_set_option(buf, name, value)
   if api.nvim_set_option_value then
     return api.nvim_set_option_value(name, value, { buf = buf })
@@ -22,6 +24,7 @@ local function win_set_option(win, name, value)
   return api.nvim_win_set_option(win, name, value)
 end
 
+-- Backward-compatible list detector.
 local function is_list(tbl)
   if vim.islist then
     return vim.islist(tbl)
@@ -30,16 +33,19 @@ local function is_list(tbl)
 end
 
 -- filesystem helpers
+-- Safe fs stat helper that works on both vim.uv and vim.loop.
 local function file_exists(path)
   return path and uv.fs_stat(path) ~= nil
 end
 
+-- Does a .todo-graph or .todo-graph.json exist at the root?
 local function graph_exists(root)
   local base = vim.fn.fnamemodify(root or ".", ":p")
   return file_exists(base .. "/.todo-graph") or file_exists(base .. "/.todo-graph.json")
 end
 
 -- buffers/windows
+-- Scratch buffer with sane defaults for floating UI.
 local function create_buf(filetype)
   local buf = api.nvim_create_buf(false, true)
   buf_set_option(buf, "bufhidden", "wipe")
@@ -52,6 +58,7 @@ local function create_buf(filetype)
   return buf
 end
 
+-- Compute layout sizes/positions for tree, preview, and footer.
 local function layout()
   local total_width = math.max(80, math.floor(vim.o.columns * 0.9))
   local gap = 2
@@ -72,6 +79,7 @@ local function layout()
   }
 end
 
+-- Update preview window title (no-op if window is invalid).
 local function set_preview_title(win, title)
   if not (win and api.nvim_win_is_valid(win)) then
     return
@@ -82,6 +90,7 @@ local function set_preview_title(win, title)
   })
 end
 
+-- Create tree (left), preview (right), and footer (shortcuts) windows.
 local function open_windows(tree_buf, preview_buf)
   local dims = layout()
 
@@ -149,6 +158,7 @@ local function open_windows(tree_buf, preview_buf)
 end
 
 -- graph normalization
+-- Normalize todos from map or list into a map keyed by id.
 local function normalize_todos(raw)
   if type(raw) ~= "table" then
     return {}
@@ -179,6 +189,7 @@ local function normalize_todos(raw)
   return todos
 end
 
+-- Normalize edges; accept lower/upper-case keys.
 local function normalize_edges(raw)
   if type(raw) ~= "table" then
     return {}
@@ -196,6 +207,7 @@ local function normalize_edges(raw)
   return edges
 end
 
+-- Build roots and adjacency for the tree render.
 local function build_index(g)
   local todos = normalize_todos(g.todos or {})
   local edges = normalize_edges(g.edges or {})
@@ -240,6 +252,7 @@ local function build_index(g)
   return roots, children, todos
 end
 
+-- Render tree lines and fill line_index[row]=id for quick lookup.
 local function render_tree(roots, children, todos, expanded, line_index)
   local lines = {}
   local function append_line(id, depth)
