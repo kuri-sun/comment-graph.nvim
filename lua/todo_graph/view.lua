@@ -1,6 +1,5 @@
 local api = vim.api
 local todo = require("todo_graph")
-local util = require("todo_graph.util")
 
 local View = {}
 View.__index = View
@@ -15,21 +14,22 @@ local function create_buf()
   return buf
 end
 
-local function open_window(buf, title)
-  local width = math.floor(vim.o.columns * 0.45)
-  local height = math.floor(vim.o.lines * 0.6)
-  local row = math.floor((vim.o.lines - height) / 3)
-  local col = math.floor((vim.o.columns - width) / 2)
+local function open_window(buf)
+  local width = math.max(32, math.floor(vim.o.columns * 0.35))
 
-  return api.nvim_open_win(buf, true, {
-    relative = "editor",
-    width = width,
-    height = height,
-    row = row,
-    col = col,
-    border = "rounded",
-    title = title or "TODO Graph",
-  })
+  vim.cmd("topleft vsplit")
+  local win = api.nvim_get_current_win()
+  api.nvim_win_set_buf(win, buf)
+  api.nvim_win_set_width(win, width)
+
+  api.nvim_win_set_option(win, "number", false)
+  api.nvim_win_set_option(win, "relativenumber", false)
+  api.nvim_win_set_option(win, "signcolumn", "no")
+  api.nvim_win_set_option(win, "foldcolumn", "0")
+  api.nvim_win_set_option(win, "wrap", false)
+  api.nvim_win_set_option(win, "cursorline", true)
+
+  return win
 end
 
 local function build_index(g)
@@ -90,6 +90,9 @@ local function render_tree(roots, children, todos, expanded, line_index)
     end
     local kids = children[id] or {}
     local has_children = #kids > 0
+    if expanded[id] == nil then
+      expanded[id] = depth == 0
+    end
     local marker = has_children and (expanded[id] and "[-]" or "[+]") or "   "
     local prefix = string.rep("  ", depth)
     table.insert(lines, string.format("%s%s %s%s", prefix, marker, id, loc))
@@ -125,6 +128,18 @@ function View:refresh()
   local roots, children, todos = build_index(graph)
   self.line_to_id = {}
   local lines = render_tree(roots, children, todos, self.expanded, self.line_to_id)
+
+  local dir_display = self.dir or vim.loop.cwd() or "."
+  dir_display = vim.fn.fnamemodify(dir_display, ":~")
+  local header = { "TODO Graph", "Dir: " .. dir_display, "" }
+  local new_index = {}
+  for line_num, id in pairs(self.line_to_id) do
+    new_index[line_num + #header] = id
+  end
+  self.line_to_id = new_index
+  for i = #header, 1, -1 do
+    table.insert(lines, 1, header[i])
+  end
 
   api.nvim_buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
@@ -172,7 +187,7 @@ function View.open(opts)
   local view = setmetatable({}, View)
   view.dir = opts.dir
   view.buf = create_buf()
-  view.win = open_window(view.buf, "TODO Graph")
+  view.win = open_window(view.buf)
   view.expanded = {}
   view.line_to_id = {}
 

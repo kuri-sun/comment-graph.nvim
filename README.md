@@ -10,7 +10,7 @@ Early scaffold with basic UI:
 - `:TodoGraphGenerate [dir]` runs `todo-graph generate`.
 - `:TodoGraphCheck [dir]` runs `todo-graph check`.
 - `:TodoGraphFix [dir]` runs `todo-graph fix` to add missing `@todo-id`s.
-- `:TodoGraphView [dir]` opens a floating tree view (runs `generate --format json --output <temp>` to render the tree).
+- `:TodoGraphView [dir]` opens a left-hand tree view (runs `generate --format json --output <temp>` to render the tree).
 
 ## Installation
 
@@ -38,6 +38,6 @@ The plugin will try these locations for the binary (in order):
 - `:TodoGraphGenerate [dir]` — run `todo-graph generate` (optional dir override).
 - `:TodoGraphCheck [dir]` — run `todo-graph check` (optional dir override).
 - `:TodoGraphFix [dir]` — run `todo-graph fix` (optional dir override).
-- `:TodoGraphView [dir]` — floating tree view (toggle nodes with `<CR>`, refresh with `r`, close with `q`; generates JSON to a temp file).
+- `:TodoGraphView [dir]` — left-side tree view (toggle nodes with `<CR>`, refresh with `r`, close with `q`; generates JSON to a temp file).
 
 More commands and UI are coming next.
