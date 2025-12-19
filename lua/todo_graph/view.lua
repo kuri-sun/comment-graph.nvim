@@ -264,11 +264,11 @@ local function render_tree(roots, children, todos, expanded, line_index)
 		if todo and todo.file then
 			loc = string.format(" (%s:%s)", todo.file, todo.line or "?")
 		end
-		local kids = children[id] or {}
-		local has_children = #kids > 0
-		if expanded[id] == nil then
-			expanded[id] = depth == 0
-		end
+    local kids = children[id] or {}
+    local has_children = #kids > 0
+    if expanded[id] == nil then
+      expanded[id] = true
+    end
 		local marker = has_children and (expanded[id] and "[-]" or "[+]") or "   "
 		local prefix = string.rep("  ", depth)
 		table.insert(lines, string.format("%s%s %s%s", prefix, marker, id, loc))
