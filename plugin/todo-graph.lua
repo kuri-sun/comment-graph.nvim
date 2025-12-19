@@ -5,11 +5,12 @@ end
 local todo = require("todo_graph")
 local view = require("todo_graph.view")
 local tree = require("todo_graph.tree")
+local util = require("todo_graph.util")
 
 vim.api.nvim_create_user_command("TodoGraphInfo", function()
   local out, err = todo.version()
   if err then
-    vim.notify(err, vim.log.levels.ERROR)
+    util.notify_err(err)
     return
   end
   out = (out or ""):gsub("%s+$", "")

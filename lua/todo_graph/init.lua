@@ -1,12 +1,10 @@
 local M = {}
 
+local util = require("todo_graph.util")
+
 local config = {
   bin = nil, -- user override
 }
-
-local function trim_trailing(s)
-  return (s or ""):gsub("%s+$", "")
-end
 
 local function path_exists(path)
   return vim.loop.fs_stat(path) ~= nil
@@ -61,7 +59,7 @@ local function run_view(opts)
   if vim.v.shell_error ~= 0 then
     return nil, err ~= "" and err or out
   end
-  return trim_trailing(out), nil
+  return util.trim(out), nil
 end
 
 local function parse_view(output)

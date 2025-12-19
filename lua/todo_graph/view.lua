@@ -1,5 +1,6 @@
 local api = vim.api
 local todo = require("todo_graph")
+local util = require("todo_graph.util")
 
 local View = {}
 
@@ -52,7 +53,7 @@ function M.open_roots(opts)
   opts = opts or {}
   local roots, err = todo.roots({ dir = opts.dir })
   if err then
-    vim.notify(err, vim.log.levels.ERROR)
+    util.notify_err(err)
     return
   end
   local buf = create_buf()
