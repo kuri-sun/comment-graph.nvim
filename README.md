@@ -7,8 +7,9 @@ Neovim integration for [todo-graph](https://github.com/kuri-sun/todo-graph).
 Early scaffold with basic UI:
 - Resolves the `todo-graph` binary (override, then `./node_modules/.bin`, then PATH).
 - `:TodoGraphInfo` checks the binary version.
-- `:TodoGraphRoots [dir]` opens a small window showing roots (`todo-graph view --roots-only`).
-- `:TodoGraphView [dir]` shows a full tree (expand/collapse with `<CR>`, refresh with `r`, close with `q`).
+- `:TodoGraphGenerate [dir]` runs `todo-graph generate`.
+- `:TodoGraphCheck [dir]` runs `todo-graph check`.
+- `:TodoGraphFix [dir]` runs `todo-graph fix` to add missing `@todo-id`s.
 
 ## Installation
 
@@ -33,7 +34,8 @@ The plugin will try these locations for the binary (in order):
 ## Commands
 
 - `:TodoGraphInfo` — runs `todo-graph --version` using the resolver.
-- `:TodoGraphRoots [dir]` — roots-only list in a floating window.
-- `:TodoGraphView [dir]` — full tree with expand/collapse in a floating window.
+- `:TodoGraphGenerate [dir]` — run `todo-graph generate` (optional dir override).
+- `:TodoGraphCheck [dir]` — run `todo-graph check` (optional dir override).
+- `:TodoGraphFix [dir]` — run `todo-graph fix` (optional dir override).
 
 More commands and UI are coming next.

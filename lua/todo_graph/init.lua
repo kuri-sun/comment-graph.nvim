@@ -44,13 +44,15 @@ local function run_version()
   return out, nil
 end
 
-local function run_view(opts)
+local function run_cli(subcommand, opts)
   opts = opts or {}
   local bin = resolve_bin()
   local dir = opts.dir or vim.loop.cwd() or "."
-  local args = { bin, "view", "--dir", dir }
-  if opts.roots_only then
-    table.insert(args, "--roots-only")
+  local args = { bin, subcommand, "--dir", dir }
+  if opts.args then
+    for _, a in ipairs(opts.args) do
+      table.insert(args, a)
+    end
   end
   local ok, out, err = pcall(vim.fn.system, args)
   if not ok then
@@ -62,40 +64,6 @@ local function run_view(opts)
   return util.trim(out), nil
 end
 
-local function parse_view(output)
-  local roots = {}
-  for line in output:gmatch("[^\r\n]+") do
-    line = vim.trim(line)
-    if line ~= "" and vim.startswith(line, "- []") then
-      local id = line:match("%- %[%] ([^%s]+)")
-      if id then
-        table.insert(roots, id)
-      end
-    end
-  end
-  return roots
-end
-
-local function parse_tree(output)
-  local root = { id = "ROOT", children = {}, level = 0 }
-  local stack = { root }
-  for line in output:gmatch("[^\r\n]+") do
-    local leading = line:match("^(%s*)")
-    local depth = math.floor(#leading / 2)
-    local id = line:match("%- %[%] ([^%s]+)")
-    if id then
-      local node = { id = id, children = {}, line = line, level = depth }
-      while #stack > depth + 1 do
-        table.remove(stack)
-      end
-      local parent = stack[#stack] or root
-      table.insert(parent.children, node)
-      table.insert(stack, node)
-    end
-  end
-  return root.children
-end
-
 function M.setup(opts)
   config = vim.tbl_extend("force", config, opts or {})
 end
@@ -104,41 +72,16 @@ function M.version()
   return run_version()
 end
 
-function M.roots(opts)
-  local out, err = run_view(vim.tbl_extend("force", { roots_only = true }, opts or {}))
-  if err then
-    return nil, err
-  end
-  return parse_view(out), nil
+function M.generate(opts)
+  return run_cli("generate", opts)
 end
 
-function M.tree(opts)
-  local out, err = run_view(vim.tbl_extend("force", { roots_only = false }, opts or {}))
-  if err then
-    return nil, err
-  end
-  return parse_tree(out), nil
+function M.check(opts)
+  return run_cli("check", opts)
 end
 
--- Status helper: returns counts for statusline or logging.
--- { roots = n, total = m }
-function M.status(opts)
-  local out, err = run_view(vim.tbl_extend("force", { roots_only = false }, opts or {}))
-  if err then
-    return nil, err
-  end
-  local tree = parse_tree(out)
-  local total = 0
-  local function walk(nodes)
-    for _, n in ipairs(nodes) do
-      total = total + 1
-      if n.children then
-        walk(n.children)
-      end
-    end
-  end
-  walk(tree or {})
-  return { roots = #(tree or {}), total = total }, nil
+function M.fix(opts)
+  return run_cli("fix", opts)
 end
 
 return M
