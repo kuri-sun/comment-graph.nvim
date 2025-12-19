@@ -119,36 +119,45 @@ end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
 local function render_tree(roots, children, todos, expanded, line_index)
-	local lines = {}
-	local function append_line(id, depth)
-		local todo_item = todos[id]
-		local loc = ""
-		if todo_item and todo_item.file then
-			loc = string.format(" (%s:%s)", todo_item.file, todo_item.line or "?")
-		end
-		local kids = children[id] or {}
-		local has_children = #kids > 0
-		if expanded[id] == nil then
-			expanded[id] = true
-		end
-		local marker = has_children and (expanded[id] and "[-]" or "[+]") or "   "
-		local prefix = string.rep("  ", depth)
-		table.insert(lines, string.format("%s%s %s%s", prefix, marker, id, loc))
-		line_index[#lines] = id
-		if has_children and expanded[id] then
-			for _, child in ipairs(kids) do
-				append_line(child, depth + 1)
-			end
-		end
-	end
+  local lines = {}
+  local function append_line(id, depth, prefix_parts, is_last)
+    local todo_item = todos[id]
+    local loc = ""
+    if todo_item and todo_item.file then
+      loc = string.format(" (%s:%s)", todo_item.file, todo_item.line or "?")
+    end
+    local kids = children[id] or {}
+    local has_children = #kids > 0
+    if expanded[id] == nil then
+      expanded[id] = true
+    end
+    local marker = has_children and (expanded[id] and "[-]" or "[+]") or "• "
+    local prefix = table.concat(prefix_parts)
+    local branch = ""
+    if depth > 0 then
+      branch = is_last and "\\-" or "|-"
+    end
+    table.insert(lines, string.format("%s%s %s%s", prefix .. branch, marker, id, loc))
+    line_index[#lines] = id
+    if has_children and expanded[id] then
+      for idx, child in ipairs(kids) do
+        local child_last = idx == #kids
+        local next_prefix = { table.unpack(prefix_parts) }
+        if depth > 0 then
+          table.insert(next_prefix, is_last and "   " or "|  ")
+        end
+        append_line(child, depth + 1, next_prefix, child_last)
+      end
+    end
+  end
 
-	for _, r in ipairs(roots) do
-		append_line(r, 0)
-	end
-	if #lines == 0 then
-		lines = { "(no TODOs found)" }
-	end
-	return lines
+  for _, r in ipairs(roots) do
+    append_line(r, 0, {}, false)
+  end
+  if #lines == 0 then
+    lines = { "(no TODOs found)" }
+  end
+  return lines
 end
 
 function View:update_preview()
