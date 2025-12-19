@@ -334,10 +334,17 @@ function View:update_preview()
 		else
 			lines = data
 			local total = #data
-			if lnum >= 1 and lnum <= total then
-				self.highlight_line = lnum - 1
-			elseif total > 0 then
-				self.highlight_line = total - 1
+			if total > 0 then
+				local target = lnum
+				if target < 1 then
+					target = 1
+				end
+				if target > total then
+					target = total
+				end
+				self.highlight_line = target - 1
+			else
+				self.highlight_line = nil
 			end
 		end
 	else
