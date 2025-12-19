@@ -441,7 +441,7 @@ local function set_keymaps(view)
     nowait = true,
     noremap = true,
     callback = function()
-      focus_preview(view)
+      focus_tree(view)
     end,
   })
   api.nvim_buf_set_keymap(view.preview_buf, "n", "<S-Tab>", "", {
