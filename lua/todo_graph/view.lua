@@ -222,8 +222,6 @@ local function render_tree(roots, children, todos, expanded, line_index)
   if #lines == 0 then
     lines = { "(no TODOs found)" }
   end
-  table.insert(lines, "")
-  table.insert(lines, "q:close  <CR>:toggle  r:refresh")
   return lines
 end
 
