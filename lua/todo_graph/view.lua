@@ -112,8 +112,8 @@ local function layout()
 	local total_width = math.max(80, math.floor(vim.o.columns * 0.9))
 	local gap = 2
 	local usable = total_width - gap
-	local tree_width = math.max(35, math.floor(usable * 0.4))
-	local preview_width = math.max(40, total_width - tree_width - gap)
+	local tree_width = math.max(35, math.floor(usable * 0.6))
+	local preview_width = math.max(30, total_width - tree_width - gap)
 	local height = math.max(20, math.floor(vim.o.lines * 0.7))
 	local row = math.floor((vim.o.lines - height) / 2)
 	local col = math.floor((vim.o.columns - (tree_width + gap + preview_width)) / 2)
