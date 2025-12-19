@@ -363,6 +363,18 @@ function View:toggle_line()
   self:refresh()
 end
 
+local function focus_tree(view)
+  if view.win and api.nvim_win_is_valid(view.win) then
+    api.nvim_set_current_win(view.win)
+  end
+end
+
+local function focus_preview(view)
+  if view.preview_win and api.nvim_win_is_valid(view.preview_win) then
+    api.nvim_set_current_win(view.preview_win)
+  end
+end
+
 local function set_keymaps(view)
   api.nvim_buf_set_keymap(view.buf, "n", "q", "", {
     nowait = true,
@@ -388,6 +400,36 @@ local function set_keymaps(view)
     noremap = true,
     callback = function()
       view:toggle_line()
+    end,
+  })
+
+  api.nvim_buf_set_keymap(view.buf, "n", "<Tab>", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      focus_preview(view)
+    end,
+  })
+  api.nvim_buf_set_keymap(view.buf, "n", "<S-Tab>", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      focus_tree(view)
+    end,
+  })
+
+  api.nvim_buf_set_keymap(view.preview_buf, "n", "<Tab>", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      focus_preview(view)
+    end,
+  })
+  api.nvim_buf_set_keymap(view.preview_buf, "n", "<S-Tab>", "", {
+    nowait = true,
+    noremap = true,
+    callback = function()
+      focus_tree(view)
     end,
   })
 
