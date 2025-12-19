@@ -203,6 +203,10 @@ function View:update_preview()
 	end
 	if self.highlight_line and self.highlight_line >= 0 then
 		api.nvim_buf_add_highlight(self.preview_buf, self.ns, "Search", self.highlight_line, 0, -1)
+		-- Scroll the preview window to the highlighted line.
+		if self.preview_win and api.nvim_win_is_valid(self.preview_win) then
+			api.nvim_win_set_cursor(self.preview_win, { self.highlight_line + 1, 0 })
+		end
 	end
 end
 
