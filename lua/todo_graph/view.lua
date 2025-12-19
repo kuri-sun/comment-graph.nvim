@@ -15,12 +15,20 @@ local function create_buf()
 end
 
 local function open_window(buf)
-  local width = math.max(32, math.floor(vim.o.columns * 0.35))
+  local width = math.max(50, math.floor(vim.o.columns * 0.5))
+  local height = math.max(20, math.floor(vim.o.lines * 0.7))
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
 
-  vim.cmd("topleft vsplit")
-  local win = api.nvim_get_current_win()
-  api.nvim_win_set_buf(win, buf)
-  api.nvim_win_set_width(win, width)
+  local win = api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    border = "rounded",
+    style = "minimal",
+  })
 
   api.nvim_win_set_option(win, "number", false)
   api.nvim_win_set_option(win, "relativenumber", false)
