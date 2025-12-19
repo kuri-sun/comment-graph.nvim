@@ -4,6 +4,7 @@ end
 
 local todo = require("todo_graph")
 local view = require("todo_graph.view")
+local tree = require("todo_graph.tree")
 
 vim.api.nvim_create_user_command("TodoGraphInfo", function()
   local out, err = todo.version()
@@ -19,6 +20,14 @@ vim.api.nvim_create_user_command("TodoGraphRoots", function(opts)
   view.open_roots({ dir = opts.fargs[1] })
 end, {
   desc = "Show TODO roots (roots-only view in a window)",
+  nargs = "?",
+  complete = "dir",
+})
+
+vim.api.nvim_create_user_command("TodoGraphView", function(opts)
+  tree.open({ dir = opts.fargs[1] })
+end, {
+  desc = "Show full TODO graph tree (expand/collapse with <CR>, refresh with r, close with q)",
   nargs = "?",
   complete = "dir",
 })
