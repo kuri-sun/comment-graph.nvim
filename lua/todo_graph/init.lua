@@ -97,6 +97,34 @@ function M.fix(opts)
 	return run_cli("fix", opts)
 end
 
+-- Move a TODO under a new parent by detaching existing deps and setting the target.
+function M.move(opts)
+	opts = opts or {}
+	local id = opts.id
+	local parent = opts.parent
+	if not id or not parent then
+		return nil, "id and parent are required"
+	end
+	local dir = opts.dir
+	-- detach all current parents
+	local _, err = run_cli("deps", {
+		dir = dir,
+		args = { "detach", "--id", id, "--all" },
+	})
+	if err then
+		return nil, err
+	end
+	-- set new parent
+	local _, err2 = run_cli("deps", {
+		dir = dir,
+		args = { "set", "--id", id, "--depends-on", parent },
+	})
+	if err2 then
+		return nil, err2
+	end
+	return true, nil
+end
+
 -- Generate a fresh graph as JSON (written to a temp file) and return decoded table.
 -- Does not mutate the user's .todo-graph because output is redirected to a temp path.
 function M.graph(opts)

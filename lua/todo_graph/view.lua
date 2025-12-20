@@ -8,28 +8,29 @@ View.__index = View
 
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
-local instructions = "q: close   Enter: open file   Space: expand/collapse   Tab: switch pane"
+local instructions = "q: close   Enter: open file/select target   Space: expand/collapse   Tab: switch pane   m: move"
 
 local hl_defined = false
 
 local function get_icons()
-	return {
-		expanded = "[-]",
-		collapsed = "[+]",
-		leaf = " - ",
-	}
+  return {
+    expanded = "",
+    collapsed = "",
+    leaf = " ",
+  }
 end
 
 local function ensure_highlights()
 	if hl_defined then
 		return
 	end
-	-- Use existing groups to stay theme-friendly.
-	vim.api.nvim_set_hl(0, "TodoGraphMarker", { link = "Comment", default = true })
-	vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
-	vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
-	vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
-	hl_defined = true
+  -- Use existing groups to stay theme-friendly.
+  vim.api.nvim_set_hl(0, "TodoGraphMarker", { link = "Normal", bold = true, default = true })
+  vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
+  vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
+  vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
+  vim.api.nvim_set_hl(0, "TodoGraphMove", { link = "IncSearch", default = true })
+  hl_defined = true
 end
 
 local function trim_comment_prefix(line)
@@ -287,6 +288,7 @@ local function highlight_tree(view, lines)
 		local marker_len = meta and meta.marker_len or 0
 		local prefix_len = meta and meta.prefix_len or 0
 		local has_loc = meta and meta.has_loc
+		local id = view.line_to_id[idx]
 		local marker_start = prefix_len
 		local marker_end = marker_start + marker_len
 		if marker_len > 0 then
@@ -306,6 +308,9 @@ local function highlight_tree(view, lines)
 			if kw_start and kw_end then
 				api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphKeyword", idx - 1, kw_start - 1, kw_end)
 			end
+		end
+		if id and view.move_source == id then
+			api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphMove", idx - 1, 0, -1)
 		end
 	end
 end
@@ -403,8 +408,10 @@ function View:refresh()
 	local roots, children, todos = build_index(graph)
 	self.todos = todos
 	self.line_to_id = {}
+	self.move_source = nil
 	local lines
 	lines, self.line_meta = render_tree(self, roots, children, todos, self.expanded, self.line_to_id)
+	self.lines = lines
 
 	ui.buf_set_option(self.buf, "modifiable", true)
 	api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
@@ -439,6 +446,7 @@ end
 
 local function close_all(view)
 	-- Close tree, preview, and footer windows.
+	view.move_source = nil
 	for _, win in ipairs({ view.win, view.preview_win, view.footer_win }) do
 		if win and api.nvim_win_is_valid(win) then
 			api.nvim_win_close(win, true)
@@ -464,6 +472,27 @@ local function open_file_at_cursor(view)
 	pcall(api.nvim_win_set_cursor, 0, { lnum, 0 })
 end
 
+local function move_to_target(view)
+	local row = api.nvim_win_get_cursor(view.win)[1]
+	local target = view.line_to_id[row]
+	if not (target and view.move_source and target ~= view.move_source) then
+		view.move_source = nil
+		highlight_tree(view, view.lines or {})
+		return
+	end
+	local ok, err = todo.move({
+		dir = view.dir,
+		id = view.move_source,
+		parent = target,
+	})
+	view.move_source = nil
+	if err then
+		vim.notify("move failed: " .. err, vim.log.levels.ERROR)
+		return
+	end
+	view:refresh()
+end
+
 local function set_keymaps(view)
 	-- Wire up core shortcuts across both panes.
 	local function map(buf, lhs, fn)
@@ -480,13 +509,34 @@ local function set_keymaps(view)
 	map(view.preview_buf, "q", function()
 		close_all(view)
 	end)
+	map(view.preview_buf, "q", function()
+		close_all(view)
+	end)
 
 	map(view.buf, "<CR>", function()
-		open_file_at_cursor(view)
+		if view.move_source then
+			move_to_target(view)
+		else
+			open_file_at_cursor(view)
+		end
 	end)
 
 	map(view.buf, "<Space>", function()
 		view:toggle_line()
+	end)
+
+	map(view.buf, "m", function()
+		local row = api.nvim_win_get_cursor(view.win)[1]
+		local id = view.line_to_id[row]
+		if not id then
+			return
+		end
+		if view.move_source == id then
+			view.move_source = nil
+		else
+			view.move_source = id
+		end
+		highlight_tree(view, view.lines or {})
 	end)
 
 	map(view.buf, "<Tab>", function()
@@ -524,6 +574,7 @@ function View.open(opts)
 	view.line_to_id = {}
 	view.line_meta = {}
 	view.file_cache = {}
+	view.move_source = nil
 	view.ns = api.nvim_create_namespace("todo_graph_view")
 	view.todos = {}
 
