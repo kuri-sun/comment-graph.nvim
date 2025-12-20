@@ -29,7 +29,8 @@ local function ensure_highlights()
 	vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
 	vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
 	vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
-	vim.api.nvim_set_hl(0, "TodoGraphMove", { link = "IncSearch", default = true })
+	-- Move source row: use cursorline-style background without forcing white fg.
+	vim.api.nvim_set_hl(0, "TodoGraphMove", { link = "CursorLine", default = true })
 	hl_defined = true
 end
 
