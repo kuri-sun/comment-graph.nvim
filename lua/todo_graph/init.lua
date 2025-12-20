@@ -6,9 +6,9 @@ local config = {
 	bin = nil, -- user override
 	keywords = nil, -- optional list or comma-separated string
 	icons = {
-		expanded = " ",
-		collapsed = " ",
-		leaf = "  ",
+		expanded = "[-]",
+		collapsed = "[+]",
+		leaf = " - ",
 	},
 }
 
