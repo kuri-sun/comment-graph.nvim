@@ -8,7 +8,8 @@ View.__index = View
 
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
-local instructions = "q: close   Enter: open/move   Space: expand/collapse   Tab: switch pane   m: move"
+local instructions_normal = "q: close   Enter: open/move   Space: expand/collapse   Tab: switch pane   m: move"
+local instructions_move = "Esc: cancel move   Enter: select target   Space: expand/collapse   Tab: switch pane"
 
 local hl_defined = false
 
@@ -29,7 +30,6 @@ local function ensure_highlights()
 	vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
 	vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
 	vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
-	vim.api.nvim_set_hl(0, "TodoGraphMove", { link = "IncSearch", default = true })
 	hl_defined = true
 end
 
@@ -194,7 +194,7 @@ local function open_windows(tree_buf, preview_buf)
 	ui.buf_set_option(footer_buf, "buftype", "nofile")
 	ui.buf_set_option(footer_buf, "swapfile", false)
 	ui.buf_set_option(footer_buf, "modifiable", true)
-	api.nvim_buf_set_lines(footer_buf, 0, -1, false, { instructions })
+	api.nvim_buf_set_lines(footer_buf, 0, -1, false, { instructions_normal })
 	ui.buf_set_option(footer_buf, "modifiable", false)
 
 	local footer_row = dims.row + dims.height + 2
@@ -288,7 +288,6 @@ local function highlight_tree(view, lines)
 		local marker_len = meta and meta.marker_len or 0
 		local prefix_len = meta and meta.prefix_len or 0
 		local has_loc = meta and meta.has_loc
-		local id = view.line_to_id[idx]
 		local marker_start = prefix_len
 		local marker_end = marker_start + marker_len
 		if marker_len > 0 then
@@ -308,9 +307,6 @@ local function highlight_tree(view, lines)
 			if kw_start and kw_end then
 				api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphKeyword", idx - 1, kw_start - 1, kw_end)
 			end
-		end
-		if id and view.move_source == id then
-			api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphMove", idx - 1, 0, -1)
 		end
 	end
 end
@@ -410,6 +406,7 @@ function View:refresh()
 	self.parents = parents or {}
 	self.move_source = nil
 	self.line_to_id = {}
+	set_footer(self, instructions_normal)
 	local lines
 	lines, self.line_meta = render_tree(self, roots, children, todos, self.expanded, self.line_to_id)
 
@@ -454,6 +451,15 @@ local function close_all(view)
 	end
 end
 
+local function set_footer(view, text)
+	if not (view.footer_buf and api.nvim_buf_is_valid(view.footer_buf)) then
+		return
+	end
+	ui.buf_set_option(view.footer_buf, "modifiable", true)
+	api.nvim_buf_set_lines(view.footer_buf, 0, -1, false, { text or instructions_normal })
+	ui.buf_set_option(view.footer_buf, "modifiable", false)
+end
+
 local function open_file_at_cursor(view)
 	local row = api.nvim_win_get_cursor(view.win)[1]
 	local id = view.line_to_id[row]
@@ -477,6 +483,7 @@ local function move_to_target(view)
 	local target = view.line_to_id[row]
 	if not (target and view.move_source and target ~= view.move_source) then
 		view.move_source = nil
+		set_footer(view, instructions_normal)
 		highlight_tree(view, view.lines or {})
 		return
 	end
@@ -517,6 +524,7 @@ local function move_to_target(view)
 		vim.notify("move failed: " .. err, vim.log.levels.ERROR)
 		return
 	end
+	set_footer(view, instructions_normal)
 	view:refresh()
 end
 
@@ -571,10 +579,20 @@ local function set_keymaps(view)
 		end
 		if view.move_source == id then
 			view.move_source = nil
+			set_footer(view, instructions_normal)
 		else
 			view.move_source = id
+			set_footer(view, instructions_move)
 		end
 		highlight_tree(view, view.lines or {})
+	end)
+
+	map(view.buf, "<Esc>", function()
+		if view.move_source then
+			view.move_source = nil
+			set_footer(view, instructions_normal)
+			highlight_tree(view, view.lines or {})
+		end
 	end)
 
 	local group = api.nvim_create_augroup("TodoGraphView" .. view.buf, { clear = true })
@@ -605,6 +623,7 @@ function View.open(opts)
 	view.todos = {}
 
 	set_keymaps(view)
+	set_footer(view, instructions_normal)
 	view:refresh()
 end
 
