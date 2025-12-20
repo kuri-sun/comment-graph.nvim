@@ -14,9 +14,9 @@ local hl_defined = false
 
 local function get_icons()
 	return {
-		expanded = " ",
-		collapsed = " ",
-		leaf = " ",
+		expanded = "[-]",
+		collapsed = "[+]",
+		leaf = " - ",
 	}
 end
 
