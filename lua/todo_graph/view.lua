@@ -429,7 +429,13 @@ function View:refresh()
   local graph, err = todo.graph { dir = self.dir }
   if err then
     ui.buf_set_option(self.buf, "modifiable", true)
-    api.nvim_buf_set_lines(self.buf, 0, -1, false, { "Error:", "  " .. err })
+    local err_lines = vim.split(err, "\n", { plain = true, trimempty = true })
+    for i, line in ipairs(err_lines) do
+      err_lines[i] = "  " .. line
+    end
+    local msg = { "Error:" }
+    vim.list_extend(msg, err_lines)
+    api.nvim_buf_set_lines(self.buf, 0, -1, false, msg)
     ui.buf_set_option(self.buf, "modifiable", false)
     return
   end
