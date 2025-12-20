@@ -83,10 +83,12 @@ function M.build_index(g)
   local edges = M.normalize_edges(g.edges or {})
 
   local children = {}
+  local parents = {}
   local indegree = {}
   for id in pairs(todos) do
     indegree[id] = 0
     children[id] = {}
+    parents[id] = {}
   end
 
   for _, e in ipairs(edges) do
@@ -95,6 +97,8 @@ function M.build_index(g)
     if type(from) == "string" and type(to) == "string" then
       children[from] = children[from] or {}
       table.insert(children[from], to)
+      parents[to] = parents[to] or {}
+      table.insert(parents[to], from)
       indegree[to] = (indegree[to] or 0) + 1
       if indegree[from] == nil then
         indegree[from] = 0
@@ -119,7 +123,7 @@ function M.build_index(g)
   end
   table.sort(roots)
 
-  return roots, children, todos
+  return roots, children, parents, todos
 end
 
 return M

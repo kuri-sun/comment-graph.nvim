@@ -8,17 +8,15 @@ View.__index = View
 
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
-local instructions = "q: close   r: refresh   Enter: toggle"
+local instructions = "q: close   Enter: open/move   Space: expand/collapse   Tab: switch pane   m: move"
 
 local hl_defined = false
 
 local function get_icons()
-	local cfg = todo.get_config and todo.get_config() or {}
-	local icons = cfg.icons or {}
 	return {
-		expanded = icons.expanded or "[-]",
-		collapsed = icons.collapsed or "[+]",
-		leaf = icons.leaf or " - ",
+		expanded = "[-]",
+		collapsed = "[+]",
+		leaf = " - ",
 	}
 end
 
@@ -31,6 +29,7 @@ local function ensure_highlights()
 	vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
 	vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
 	vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
+	vim.api.nvim_set_hl(0, "TodoGraphMove", { link = "IncSearch", default = true })
 	hl_defined = true
 end
 
@@ -217,7 +216,7 @@ local function open_windows(tree_buf, preview_buf)
 	return tree_win, preview_win, footer_win, footer_buf
 end
 
--- Build roots and adjacency for the tree render.
+-- Build roots, adjacency, and parent map for the tree render.
 local function build_index(g)
 	return graph_utils.build_index({
 		todos = graph_utils.normalize_todos(g.todos or {}),
@@ -289,6 +288,7 @@ local function highlight_tree(view, lines)
 		local marker_len = meta and meta.marker_len or 0
 		local prefix_len = meta and meta.prefix_len or 0
 		local has_loc = meta and meta.has_loc
+		local id = view.line_to_id[idx]
 		local marker_start = prefix_len
 		local marker_end = marker_start + marker_len
 		if marker_len > 0 then
@@ -308,6 +308,9 @@ local function highlight_tree(view, lines)
 			if kw_start and kw_end then
 				api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphKeyword", idx - 1, kw_start - 1, kw_end)
 			end
+		end
+		if id and view.move_source == id then
+			api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphMove", idx - 1, 0, -1)
 		end
 	end
 end
@@ -402,8 +405,10 @@ function View:refresh()
 		return
 	end
 
-	local roots, children, todos = build_index(graph)
+	local roots, children, parents, todos = build_index(graph)
 	self.todos = todos
+	self.parents = parents or {}
+	self.move_source = nil
 	self.line_to_id = {}
 	local lines
 	lines, self.line_meta = render_tree(self, roots, children, todos, self.expanded, self.line_to_id)
@@ -441,11 +446,78 @@ end
 
 local function close_all(view)
 	-- Close tree, preview, and footer windows.
+	view.move_source = nil
 	for _, win in ipairs({ view.win, view.preview_win, view.footer_win }) do
 		if win and api.nvim_win_is_valid(win) then
 			api.nvim_win_close(win, true)
 		end
 	end
+end
+
+local function open_file_at_cursor(view)
+	local row = api.nvim_win_get_cursor(view.win)[1]
+	local id = view.line_to_id[row]
+	if not (id and view.todos and view.todos[id]) then
+		return
+	end
+	local todo_item = view.todos[id]
+	local path = graph_utils.resolve_path(view.dir, todo_item.file)
+	if not path or vim.fn.filereadable(path) ~= 1 then
+		vim.notify("TODO file not found: " .. (todo_item.file or "?"), vim.log.levels.WARN)
+		return
+	end
+	local lnum = tonumber(todo_item.line) or 1
+	close_all(view)
+	vim.cmd(string.format("edit %s", vim.fn.fnameescape(path)))
+	pcall(api.nvim_win_set_cursor, 0, { lnum, 0 })
+end
+
+local function move_to_target(view)
+	local row = api.nvim_win_get_cursor(view.win)[1]
+	local target = view.line_to_id[row]
+	if not (target and view.move_source and target ~= view.move_source) then
+		view.move_source = nil
+		highlight_tree(view, view.lines or {})
+		return
+	end
+
+	local current_parents = (view.parents and view.parents[view.move_source]) or {}
+	local new_parents = {}
+	-- drop the first parent (current) to "move"
+	for idx, p in ipairs(current_parents) do
+		if idx ~= 1 then
+			table.insert(new_parents, p)
+		end
+		if p == target then
+			-- already under target; no-op
+			view.move_source = nil
+			highlight_tree(view, view.lines or {})
+			return
+		end
+	end
+	local already = false
+	for _, p in ipairs(new_parents) do
+		if p == target then
+			already = true
+			break
+		end
+	end
+	if not already then
+		table.insert(new_parents, 1, target)
+	end
+
+	local _, err = todo.move({
+		dir = view.dir,
+		id = view.move_source,
+		parent = target,
+		parents = new_parents,
+	})
+	view.move_source = nil
+	if err then
+		vim.notify("move failed: " .. err, vim.log.levels.ERROR)
+		return
+	end
+	view:refresh()
 end
 
 local function set_keymaps(view)
@@ -465,15 +537,12 @@ local function set_keymaps(view)
 		close_all(view)
 	end)
 
-	map(view.buf, "r", function()
-		view:refresh()
-	end)
-	map(view.preview_buf, "r", function()
-		view:refresh()
-	end)
-
 	map(view.buf, "<CR>", function()
-		view:toggle_line()
+		if view.move_source then
+			move_to_target(view)
+		else
+			open_file_at_cursor(view)
+		end
 	end)
 
 	map(view.buf, "<Tab>", function()
@@ -488,6 +557,24 @@ local function set_keymaps(view)
 	end)
 	map(view.preview_buf, "<S-Tab>", function()
 		focus_tree(view)
+	end)
+
+	map(view.buf, "<Space>", function()
+		view:toggle_line()
+	end)
+
+	map(view.buf, "m", function()
+		local row = api.nvim_win_get_cursor(view.win)[1]
+		local id = view.line_to_id[row]
+		if not id then
+			return
+		end
+		if view.move_source == id then
+			view.move_source = nil
+		else
+			view.move_source = id
+		end
+		highlight_tree(view, view.lines or {})
 	end)
 
 	local group = api.nvim_create_augroup("TodoGraphView" .. view.buf, { clear = true })
@@ -512,6 +599,8 @@ function View.open(opts)
 	view.line_to_id = {}
 	view.line_meta = {}
 	view.file_cache = {}
+	view.move_source = nil
+	view.parents = {}
 	view.ns = api.nvim_create_namespace("todo_graph_view")
 	view.todos = {}
 
