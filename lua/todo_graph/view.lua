@@ -8,7 +8,7 @@ View.__index = View
 
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
-local instructions = "q: close   r: refresh   Enter: toggle"
+local instructions = "q: close   Enter: open file   Space: expand/collapse   Tab: switch pane"
 
 local hl_defined = false
 
@@ -446,6 +446,24 @@ local function close_all(view)
 	end
 end
 
+local function open_file_at_cursor(view)
+	local row = api.nvim_win_get_cursor(view.win)[1]
+	local id = view.line_to_id[row]
+	if not (id and view.todos and view.todos[id]) then
+		return
+	end
+	local todo_item = view.todos[id]
+	local path = graph_utils.resolve_path(view.dir, todo_item.file)
+	if not path or vim.fn.filereadable(path) ~= 1 then
+		vim.notify("TODO file not found: " .. (todo_item.file or "?"), vim.log.levels.WARN)
+		return
+	end
+	local lnum = tonumber(todo_item.line) or 1
+	close_all(view)
+	vim.cmd(string.format("edit %s", vim.fn.fnameescape(path)))
+	pcall(api.nvim_win_set_cursor, 0, { lnum, 0 })
+end
+
 local function set_keymaps(view)
 	-- Wire up core shortcuts across both panes.
 	local function map(buf, lhs, fn)
@@ -463,14 +481,11 @@ local function set_keymaps(view)
 		close_all(view)
 	end)
 
-	map(view.buf, "r", function()
-		view:refresh()
-	end)
-	map(view.preview_buf, "r", function()
-		view:refresh()
+	map(view.buf, "<CR>", function()
+		open_file_at_cursor(view)
 	end)
 
-	map(view.buf, "<CR>", function()
+	map(view.buf, "<Space>", function()
 		view:toggle_line()
 	end)
 
@@ -480,7 +495,6 @@ local function set_keymaps(view)
 	map(view.buf, "<S-Tab>", function()
 		focus_tree(view)
 	end)
-
 	map(view.preview_buf, "<Tab>", function()
 		focus_tree(view)
 	end)
