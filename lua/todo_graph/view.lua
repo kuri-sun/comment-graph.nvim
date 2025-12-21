@@ -122,8 +122,14 @@ local function report_lines(report)
   if type(report) ~= "table" then
     return {}
   end
+  local function to_list(value)
+    if type(value) ~= "table" then
+      return {}
+    end
+    return value
+  end
   local lines = {}
-  local scan_errors = report.scanErrors or report.ScanErrors or {}
+  local scan_errors = to_list(report.scanErrors or report.ScanErrors)
   if #scan_errors > 0 then
     table.insert(lines, "Scan errors:")
     for _, err in ipairs(scan_errors) do
@@ -134,7 +140,7 @@ local function report_lines(report)
     end
   end
 
-  local undefined = report.undefinedEdges or report.UndefinedEdges or {}
+  local undefined = to_list(report.undefinedEdges or report.UndefinedEdges)
   if #undefined > 0 then
     table.insert(lines, "Undefined edges:")
     for _, e in ipairs(undefined) do
@@ -144,7 +150,7 @@ local function report_lines(report)
     end
   end
 
-  local cycles = report.cycles or report.Cycles or {}
+  local cycles = to_list(report.cycles or report.Cycles)
   if #cycles > 0 then
     table.insert(lines, "Cycles:")
     for _, c in ipairs(cycles) do
@@ -154,7 +160,7 @@ local function report_lines(report)
     end
   end
 
-  local isolated = report.isolated or report.Isolated or {}
+  local isolated = to_list(report.isolated or report.Isolated)
   if #isolated > 0 then
     table.insert(lines, "Isolated TODOs:")
     table.insert(lines, "  - " .. table.concat(isolated, ", "))
