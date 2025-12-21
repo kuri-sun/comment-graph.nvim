@@ -27,5 +27,6 @@ The plugin will try these locations for the binary (in order):
 ## Commands
 
 - `:TodoGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; streams JSON without writing repo files). Honors `keywords` from setup or per-command dir override.
+- Keywords are no longer color-customizable; they follow your theme's defaults.
 
 More commands and UI are coming next.

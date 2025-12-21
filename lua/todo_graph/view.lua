@@ -9,9 +9,9 @@ View.__index = View
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
 local instructions_normal =
-  "q: close   Enter: open/move   Space: expand/collapse   Tab: switch pane   m: move"
+  "q: close   Enter: open file   Space: expand/collapse   Tab: switch pane"
 local instructions_move =
-  "Esc: cancel move   Enter: select target   Space: expand/collapse   Tab: switch pane"
+  "q: close   Esc: cancel move   Enter: open file   Space: expand/collapse   Tab: switch pane"
 
 local hl_defined = false
 
@@ -33,6 +33,7 @@ local function ensure_highlights()
   vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
   vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
   vim.api.nvim_set_hl(0, "TodoGraphError", { link = "DiagnosticError", default = true })
+  vim.api.nvim_set_hl(0, "TodoGraphWarn", { link = "DiagnosticWarn", default = true })
   hl_defined = true
 end
 
@@ -49,7 +50,10 @@ local function trim_comment_prefix(line)
   for _, pat in ipairs(prefixes) do
     line = line:gsub(pat, "")
   end
+  -- Drop trailing block/HTML comment terminators, even if followed by closers like `}` in JSX.
+  line = line:gsub("%s*%*/%s*[%]%}%)]*%s*$", "")
   line = line:gsub("%s*%*/%s*$", "")
+  line = line:gsub("%s*-->%s*[%]%}%)]*%s*$", "")
   line = line:gsub("%s*-->%s*$", "")
   return line
 end
@@ -126,7 +130,7 @@ local function layout()
   local usable = total_width - gap
   local tree_width = math.max(35, math.floor(usable * 0.55))
   local preview_width = math.max(30, total_width - tree_width - gap)
-  local height = math.max(20, math.floor(vim.o.lines * 0.7))
+  local height = math.max(24, math.floor(vim.o.lines * 0.8))
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - (tree_width + gap + preview_width)) / 2)
   return {
@@ -267,13 +271,27 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
       marker = icons.leaf
     end
     local prefix = string.rep("  ", depth)
+    local prefix_len = #prefix
     local display = label or id
     if loc ~= "" then
       display = string.format("%s %s", loc, display)
     end
     local errors = error_msgs and error_msgs[id] or nil
     local error_text
+    local error_group = "TodoGraphError"
     if errors and #errors > 0 then
+      local has_unknown = false
+      local has_other = false
+      for _, e in ipairs(errors) do
+        if type(e) == "string" and e:find("unknown dependency", 1, true) then
+          has_unknown = true
+        else
+          has_other = true
+        end
+      end
+      if has_unknown and not has_other then
+        error_group = "TodoGraphWarn"
+      end
       error_text = "⚠ " .. table.concat(errors, "; ")
     end
     local line
@@ -291,8 +309,13 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     line_index[#lines] = id
     line_meta[#lines] = {
       marker_len = #marker,
-      prefix_len = #prefix,
+      prefix_len = prefix_len,
       error_span = error_span,
+      error_group = error_group,
+      loc_span = loc ~= "" and {
+        prefix_len + #marker + 1,
+        prefix_len + #marker + 1 + #loc,
+      } or nil,
     }
     if has_children and expanded[id] then
       for _, child in ipairs(kids) do
@@ -331,13 +354,25 @@ local function highlight_tree(view, lines)
     end
     if meta and meta.error_span then
       local es = meta.error_span
+      local group = meta.error_group or "TodoGraphError"
       api.nvim_buf_add_highlight(
         view.buf,
         view.ns,
-        "TodoGraphError",
+        group,
         idx - 1,
         es[1],
         es[2]
+      )
+    end
+    if meta and meta.loc_span then
+      local ls = meta.loc_span
+      api.nvim_buf_add_highlight(
+        view.buf,
+        view.ns,
+        "TodoGraphLoc",
+        idx - 1,
+        ls[1],
+        ls[2]
       )
     end
   end
