@@ -284,9 +284,9 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
       line = string.format("%s%s %s %s", prefix, marker, display, error_text)
       local prefix_len = #prefix + #marker + 1
       local display_len = #display
-      local error_start = prefix_len + display_len + 1
-      local error_end = error_start + #error_text
-      error_span = { error_start, error_end }
+      local error_start = prefix_len + display_len + 1 -- 1-based
+      local error_end = error_start + #error_text -- 1-based, exclusive
+      error_span = { error_start - 1, error_end } -- 0-based start, exclusive end
     else
       line = string.format("%s%s %s", prefix, marker, display)
     end
@@ -339,8 +339,8 @@ local function highlight_tree(view, lines)
         view.ns,
         "TodoGraphError",
         idx - 1,
-        es[1] - 1,
-        es[2] - 1
+        es[1],
+        es[2]
       )
     end
   end
