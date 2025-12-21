@@ -281,10 +281,10 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     local line
     local error_span
     if error_text then
-      line = string.format("%s%s %s %s", prefix, marker, display, error_text)
+      line = string.format("%s%s %s ⚠ %s", prefix, marker, display, error_text)
       local prefix_len = #prefix + #marker + 1
       local display_len = #display
-      local error_start = prefix_len + display_len + 1 -- 1-based
+      local error_start = prefix_len + display_len + 4 -- include space, symbol, space
       local error_end = error_start + #error_text -- 1-based, exclusive
       error_span = { error_start - 1, error_end } -- 0-based start, exclusive end
     else
