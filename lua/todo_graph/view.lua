@@ -201,8 +201,8 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     local line
     local error_span
     if error_text then
-      line = string.format("%s%s %s %s", prefix, marker, display, error_text)
-      local before_err = prefix .. marker .. " " .. display .. " "
+      line = string.format("%s%s %s   %s", prefix, marker, display, error_text)
+      local before_err = prefix .. marker .. " " .. display .. "   "
       local start_idx = #before_err
       local err_len = #error_text
       error_span = { start_idx, start_idx + err_len }
@@ -362,7 +362,7 @@ function View:refresh()
       end
       if type(to) == "string" then
         error_msgs[to] = error_msgs[to] or {}
-        table.insert(error_msgs[to], string.format("missing dependency \"%s\".", from or "?"))
+        table.insert(error_msgs[to], string.format("unknown dependency \"%s\".", from or "?"))
       end
     end
   end
