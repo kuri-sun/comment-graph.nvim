@@ -245,7 +245,7 @@ local function build_index(g)
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
-local function render_tree(view, roots, children, todos, expanded, line_index, error_ids)
+local function render_tree(view, roots, children, todos, expanded, line_index, error_msgs)
   local lines = {}
   local line_meta = {}
   local icons = get_icons()
@@ -256,9 +256,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
       loc = string.format("%s:%s", loc, todo_item.line)
     end
     local label, keyword = todo_label(view, todo_item)
-    if not label or label == "" then
-      label = id
-    end
+    _ = keyword -- label/keyword unused in inline view
     local kids = children[id] or {}
     local has_children = #kids > 0
     if expanded[id] == nil then
@@ -271,18 +269,33 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
       marker = icons.leaf
     end
     local prefix = string.rep("  ", depth)
+    local display = id
     if loc ~= "" then
-      table.insert(lines, string.format("%s%s %s %s", prefix, marker, loc, label))
-    else
-      table.insert(lines, string.format("%s%s %s", prefix, marker, label))
+      display = string.format("%s (%s)", display, loc)
     end
+    local errors = error_msgs and error_msgs[id] or nil
+    local error_text
+    if errors and #errors > 0 then
+      error_text = "[" .. table.concat(errors, "; ") .. "]"
+    end
+    local line
+    local error_span
+    if error_text then
+      line = string.format("%s%s %s %s", prefix, marker, display, error_text)
+      local prefix_len = #prefix + #marker + 1
+      local display_len = #display
+      local error_start = prefix_len + display_len + 1
+      local error_end = error_start + #error_text
+      error_span = { error_start, error_end }
+    else
+      line = string.format("%s%s %s", prefix, marker, display)
+    end
+    table.insert(lines, line)
     line_index[#lines] = id
     line_meta[#lines] = {
-      keyword = keyword,
       marker_len = #marker,
       prefix_len = #prefix,
-      has_loc = loc ~= "",
-      has_error = error_ids and error_ids[id] or false,
+      error_span = error_span,
     }
     if has_children and expanded[id] then
       for _, child in ipairs(kids) do
@@ -305,14 +318,8 @@ local function highlight_tree(view, lines)
   api.nvim_buf_clear_namespace(view.buf, view.ns, 0, -1)
   for idx, line in ipairs(lines) do
     local meta = view.line_meta and view.line_meta[idx] or nil
-    local keyword = meta and meta.keyword or nil
     local marker_len = meta and meta.marker_len or 0
     local prefix_len = meta and meta.prefix_len or 0
-    local has_loc = meta and meta.has_loc
-    local has_error = meta and meta.has_error
-    if has_error then
-      api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphError", idx - 1, 0, -1)
-    end
     local marker_start = prefix_len
     local marker_end = marker_start + marker_len
     if marker_len > 0 then
@@ -325,34 +332,16 @@ local function highlight_tree(view, lines)
         marker_end
       )
     end
-    local start_col = marker_end + 1
-    local loc_end = start_col
-    if has_loc then
-      loc_end = line:find("%s", start_col) or (#line + 1)
-      if loc_end > start_col then
-        api.nvim_buf_add_highlight(
-          view.buf,
-          view.ns,
-          "TodoGraphLoc",
-          idx - 1,
-          start_col - 1,
-          loc_end - 1
-        )
-      end
-    end
-    local search_from = (has_loc and loc_end + 1) or start_col
-    if keyword and keyword ~= "" then
-      local kw_start, kw_end = line:find(keyword, search_from, true)
-      if kw_start and kw_end then
-        api.nvim_buf_add_highlight(
-          view.buf,
-          view.ns,
-          "TodoGraphKeyword",
-          idx - 1,
-          kw_start - 1,
-          kw_end
-        )
-      end
+    if meta and meta.error_span then
+      local es = meta.error_span
+      api.nvim_buf_add_highlight(
+        view.buf,
+        view.ns,
+        "TodoGraphError",
+        idx - 1,
+        es[1] - 1,
+        es[2] - 1
+      )
     end
   end
 end
@@ -437,7 +426,7 @@ function View:refresh()
 
   local validation = report_lines(graph.report)
   local roots, children, parents, todos = build_index(graph)
-  local error_ids = {}
+  local error_msgs = {}
   local rep = graph.report or {}
   local function to_list(value)
     if type(value) ~= "table" then
@@ -449,11 +438,14 @@ function View:refresh()
     if type(e) == "table" then
       local from = e.from or e.From
       local to = e.to or e.To
+      local msg = "undefined edge"
       if type(from) == "string" then
-        error_ids[from] = true
+        error_msgs[from] = error_msgs[from] or {}
+        table.insert(error_msgs[from], msg)
       end
       if type(to) == "string" then
-        error_ids[to] = true
+        error_msgs[to] = error_msgs[to] or {}
+        table.insert(error_msgs[to], msg)
       end
     end
   end
@@ -461,14 +453,16 @@ function View:refresh()
     if type(cycle) == "table" then
       for _, id in ipairs(cycle) do
         if type(id) == "string" then
-          error_ids[id] = true
+          error_msgs[id] = error_msgs[id] or {}
+          table.insert(error_msgs[id], "cycle")
         end
       end
     end
   end
   for _, id in ipairs(to_list(rep.isolated or rep.Isolated)) do
     if type(id) == "string" then
-      error_ids[id] = true
+      error_msgs[id] = error_msgs[id] or {}
+      table.insert(error_msgs[id], "isolated")
     end
   end
   self.todos = todos
@@ -477,7 +471,7 @@ function View:refresh()
   self.line_to_id = {}
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
-  local tree_lines, tree_meta = render_tree(self, roots, children, todos, self.expanded, tree_line_to_id, error_ids)
+  local tree_lines, tree_meta = render_tree(self, roots, children, todos, self.expanded, tree_line_to_id, error_msgs)
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
