@@ -11,12 +11,3 @@ end, {
   nargs = "?",
   complete = "dir",
 })
-
--- Legacy alias for older configs.
-vim.api.nvim_create_user_command("TodoGraphView", function(opts)
-  view.open { dir = opts.fargs[1] }
-end, {
-  desc = "[deprecated] Use :CommentGraphView",
-  nargs = "?",
-  complete = "dir",
-})

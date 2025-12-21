@@ -26,6 +26,5 @@ The plugin will try these locations for the binary (in order):
 ## Commands
 
 - `:CommentGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; streams JSON without writing repo files).
-- Legacy `:TodoGraphView` is still provided for compatibility.
 
 More commands and UI are coming next.
