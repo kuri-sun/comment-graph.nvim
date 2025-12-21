@@ -36,44 +36,6 @@ local function ensure_highlights()
   hl_defined = true
 end
 
-local function trim_comment_prefix(line)
-  local prefixes = {
-    "^%s*//+%s*",
-    "^%s*#%s*",
-    "^%s*%-%-%s*",
-    "^%s*/%*+%s*",
-    "^%s*%*+%s*",
-    "^%s*{%/%*%s*",
-    "^%s*<!--%s*",
-  }
-  for _, pat in ipairs(prefixes) do
-    line = line:gsub(pat, "")
-  end
-  -- Drop trailing block/HTML comment terminators, even if followed by closers like `}` in JSX.
-  line = line:gsub("%s*%*/%s*[%]%}%)]*%s*$", "")
-  line = line:gsub("%s*%*/%s*$", "")
-  line = line:gsub("%s*-->%s*[%]%}%)]*%s*$", "")
-  line = line:gsub("%s*-->%s*$", "")
-  return line
-end
-
-local function load_file_lines(cache, path)
-  if cache[path] ~= nil then
-    return cache[path]
-  end
-  if vim.fn.filereadable(path) ~= 1 then
-    cache[path] = false
-    return nil
-  end
-  local ok, data = pcall(vim.fn.readfile, path)
-  if not ok then
-    cache[path] = false
-    return nil
-  end
-  cache[path] = data
-  return data
-end
-
 local function node_label(node_item)
   if not node_item then
     return nil, nil
@@ -205,13 +167,13 @@ end
 -- Build roots, adjacency, and parent map for the tree render.
 local function build_index(g)
   return graph_utils.build_index {
-    nodes = graph_utils.normalize_nodes(g.nodes or g.nodes or {}),
+    nodes = graph_utils.normalize_nodes(g.nodes or {}),
     edges = graph_utils.normalize_edges(g.edges or {}),
   }
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
-local function render_tree(view, roots, children, nodes, expanded, line_index, error_msgs)
+local function render_tree(roots, children, nodes, expanded, line_index, error_msgs)
   local lines = {}
   local line_meta = {}
   local icons = get_icons()
@@ -451,7 +413,7 @@ function View:refresh()
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
   local tree_lines, tree_meta =
-    render_tree(self, roots, children, nodes, self.expanded, tree_line_to_id, error_msgs)
+    render_tree(roots, children, nodes, self.expanded, tree_line_to_id, error_msgs)
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
