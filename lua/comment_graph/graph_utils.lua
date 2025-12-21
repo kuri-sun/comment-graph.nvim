@@ -77,7 +77,7 @@ function M.normalize_edges(raw)
 end
 
 function M.build_index(g)
-  local nodes = M.normalize_nodes(g.nodes or g.todos or {})
+  local nodes = M.normalize_nodes(g.nodes or {})
   local edges = M.normalize_edges(g.edges or {})
 
   local children = {}

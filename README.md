@@ -8,7 +8,7 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 
 ```lua
 {
-  "kuri-sun/todo-graph.nvim",
+  "kuri-sun/comment-graph.nvim",
   config = function()
     require("comment_graph").setup({
       -- bin = "/absolute/path/to/comment-graph", -- optional override
