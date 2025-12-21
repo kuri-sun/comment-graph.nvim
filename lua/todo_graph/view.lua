@@ -357,11 +357,11 @@ function View:refresh()
       local to = e.to or e.To
       if type(from) == "string" then
         error_msgs[from] = error_msgs[from] or {}
-        table.insert(error_msgs[from], "undefined edge.")
+        table.insert(error_msgs[from], "undefined edge")
       end
       if type(to) == "string" then
         error_msgs[to] = error_msgs[to] or {}
-        table.insert(error_msgs[to], string.format("unknown dependency \"%s\".", from or "?"))
+        table.insert(error_msgs[to], string.format("unknown dependency \"%s\"", from or "?"))
       end
     end
   end
