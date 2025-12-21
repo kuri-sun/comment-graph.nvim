@@ -276,17 +276,16 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     local errors = error_msgs and error_msgs[id] or nil
     local error_text
     if errors and #errors > 0 then
-      error_text = table.concat(errors, "; ")
+      error_text = "⚠ " .. table.concat(errors, "; ")
     end
     local line
     local error_span
     if error_text then
-      line = string.format("%s%s %s ⚠ %s", prefix, marker, display, error_text)
-      local prefix_len = #prefix + #marker + 1
-      local display_len = #display
-      local error_start = prefix_len + display_len + 4 -- include space, symbol, space
-      local error_end = error_start + #error_text -- 1-based, exclusive
-      error_span = { error_start - 1, error_end } -- 0-based start, exclusive end
+      line = string.format("%s%s %s %s", prefix, marker, display, error_text)
+      local before_err = prefix .. marker .. " " .. display .. " "
+      local start_idx = #before_err
+      local err_len = #error_text
+      error_span = { start_idx, start_idx + err_len }
     else
       line = string.format("%s%s %s", prefix, marker, display)
     end
