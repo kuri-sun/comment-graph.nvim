@@ -98,6 +98,14 @@ local function todo_label(view, todo_item)
     return nil, nil
   end
 
+  local meta_id = line:match "^@cgraph%-id%s*:?%s*(.+)$"
+  if meta_id then
+    meta_id = meta_id:gsub("%s+$", "")
+    if meta_id ~= "" then
+      return meta_id, nil
+    end
+  end
+
   local keyword, rest = line:match "^([A-Z][A-Z0-9_-]*)[:]%s*(.*)"
   if not keyword then
     keyword, rest = line:match "^([A-Z][A-Z0-9_-]*)%s+(.*)"
