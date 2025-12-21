@@ -1,4 +1,4 @@
-# comment-graph.nvim (work in progress)
+# comment-graph.nvim
 
 Neovim integration for [comment-graph](https://github.com/kuri-sun/comment-graph).
 
