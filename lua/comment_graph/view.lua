@@ -29,7 +29,6 @@ local function ensure_highlights()
   end
   -- Use existing groups to stay theme-friendly.
   vim.api.nvim_set_hl(0, "CommentGraphMarker", { link = "Comment", default = true })
-  vim.api.nvim_set_hl(0, "CommentGraphKeyword", { link = "Todo", default = true })
   vim.api.nvim_set_hl(0, "CommentGraphId", { link = "Identifier", default = true })
   vim.api.nvim_set_hl(0, "CommentGraphLoc", { link = "Directory", default = true })
   vim.api.nvim_set_hl(0, "CommentGraphError", { link = "DiagnosticError", default = true })
