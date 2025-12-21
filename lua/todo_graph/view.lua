@@ -36,6 +36,79 @@ local function ensure_highlights()
   hl_defined = true
 end
 
+local function trim_comment_prefix(line)
+  local prefixes = {
+    "^%s*//+%s*",
+    "^%s*#%s*",
+    "^%s*%-%-%s*",
+    "^%s*/%*+%s*",
+    "^%s*%*+%s*",
+    "^%s*{%/%*%s*",
+    "^%s*<!--%s*",
+  }
+  for _, pat in ipairs(prefixes) do
+    line = line:gsub(pat, "")
+  end
+  line = line:gsub("%s*%*/%s*$", "")
+  line = line:gsub("%s*-->%s*$", "")
+  return line
+end
+
+local function load_file_lines(cache, path)
+  if cache[path] ~= nil then
+    return cache[path]
+  end
+  if vim.fn.filereadable(path) ~= 1 then
+    cache[path] = false
+    return nil
+  end
+  local ok, data = pcall(vim.fn.readfile, path)
+  if not ok then
+    cache[path] = false
+    return nil
+  end
+  cache[path] = data
+  return data
+end
+
+local function todo_label(view, todo_item)
+  if not todo_item or not todo_item.file then
+    return nil, nil
+  end
+  local path = graph_utils.resolve_path(view.dir, todo_item.file)
+  if not path then
+    return nil, nil
+  end
+  local lines = load_file_lines(view.file_cache, path)
+  if not lines then
+    return nil, nil
+  end
+  local lnum = tonumber(todo_item.line) or 1
+  local line = lines[lnum]
+  if not line then
+    return nil, nil
+  end
+  line = trim_comment_prefix(line)
+  line = line:gsub("^%s*", ""):gsub("%s*$", "")
+  if line == "" then
+    return nil, nil
+  end
+
+  local keyword, rest = line:match "^([A-Z][A-Z0-9_-]*)[:]%s*(.*)"
+  if not keyword then
+    keyword, rest = line:match "^([A-Z][A-Z0-9_-]*)%s+(.*)"
+  end
+  local label = line
+  if keyword then
+    if rest and rest ~= "" then
+      label = keyword .. ": " .. rest
+    else
+      label = keyword
+    end
+  end
+  return label, keyword
+end
+
 local function set_footer(view, text)
   if not (view.footer_buf and api.nvim_buf_is_valid(view.footer_buf)) then
     return
@@ -175,7 +248,13 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     if loc ~= "" and todo_item and todo_item.line then
       loc = string.format("%s:%s", loc, todo_item.line)
     end
-    -- label/keyword intentionally unused in inline view; ids are primary display
+    local label = nil
+    do
+      local lbl = todo_label(view, todo_item)
+      if type(lbl) == "string" then
+        label = lbl
+      end
+    end
     local kids = children[id] or {}
     local has_children = #kids > 0
     if expanded[id] == nil then
@@ -188,9 +267,9 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
       marker = icons.leaf
     end
     local prefix = string.rep("  ", depth)
-    local display = id
+    local display = label or id
     if loc ~= "" then
-      display = string.format("%s (%s)", display, loc)
+      display = string.format("%s %s", loc, display)
     end
     local errors = error_msgs and error_msgs[id] or nil
     local error_text
@@ -590,6 +669,7 @@ function View.open(opts)
   view.expanded = {}
   view.line_to_id = {}
   view.line_meta = {}
+  view.file_cache = {}
   view.move_source = nil
   view.parents = {}
   view.ns = api.nvim_create_namespace "todo_graph_view"
