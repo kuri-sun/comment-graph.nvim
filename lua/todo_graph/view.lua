@@ -175,8 +175,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     if loc ~= "" and todo_item and todo_item.line then
       loc = string.format("%s:%s", loc, todo_item.line)
     end
-    local label, keyword = todo_label(view, todo_item)
-    _ = keyword -- label/keyword unused in inline view
+    -- label/keyword intentionally unused in inline view; ids are primary display
     local kids = children[id] or {}
     local has_children = #kids > 0
     if expanded[id] == nil then
