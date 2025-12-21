@@ -276,7 +276,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     local errors = error_msgs and error_msgs[id] or nil
     local error_text
     if errors and #errors > 0 then
-      error_text = "[" .. table.concat(errors, "; ") .. "]"
+      error_text = table.concat(errors, "; ")
     end
     local line
     local error_span
