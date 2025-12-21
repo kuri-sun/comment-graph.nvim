@@ -1,6 +1,6 @@
-# todo-graph.nvim (work in progress)
+# comment-graph.nvim (work in progress)
 
-Neovim integration for [todo-graph](https://github.com/kuri-sun/todo-graph).
+Neovim integration for [comment-graph](https://github.com/kuri-sun/comment-graph).
 
 ## Installation
 
@@ -10,9 +10,8 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 {
   "kuri-sun/todo-graph.nvim",
   config = function()
-    require("todo_graph").setup({
-      -- bin = "/absolute/path/to/todo-graph", -- optional override
-      -- keywords = { "TODO", "FIXME", "NOTE" }, -- optional override (defaults to TODO,FIXME,NOTE,WARNING,HACK,CHANGED,REVIEW)
+    require("comment_graph").setup({
+      -- bin = "/absolute/path/to/comment-graph", -- optional override
     })
   end,
 }
@@ -21,12 +20,12 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 The plugin will try these locations for the binary (in order):
 
 1. `bin` passed to `setup()`
-2. `<cwd>/node_modules/.bin/todo-graph`
-3. `todo-graph` on PATH
+2. `<cwd>/node_modules/.bin/comment-graph`
+3. `comment-graph` on PATH
 
 ## Commands
 
-- `:TodoGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; streams JSON without writing repo files). Honors `keywords` from setup or per-command dir override.
-- Keywords are no longer color-customizable; they follow your theme's defaults.
+- `:CommentGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; streams JSON without writing repo files).
+- Legacy `:TodoGraphView` is still provided for compatibility.
 
 More commands and UI are coming next.

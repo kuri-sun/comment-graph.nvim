@@ -1,7 +1,7 @@
 local api = vim.api
-local todo = require "todo_graph"
-local ui = require "todo_graph.ui"
-local graph_utils = require "todo_graph.graph_utils"
+local graph = require "comment_graph"
+local ui = require "comment_graph.ui"
+local graph_utils = require "comment_graph.graph_utils"
 
 local View = {}
 View.__index = View
@@ -28,12 +28,12 @@ local function ensure_highlights()
     return
   end
   -- Use existing groups to stay theme-friendly.
-  vim.api.nvim_set_hl(0, "TodoGraphMarker", { link = "Comment", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphError", { link = "DiagnosticError", default = true })
-  vim.api.nvim_set_hl(0, "TodoGraphWarn", { link = "DiagnosticWarn", default = true })
+  vim.api.nvim_set_hl(0, "CommentGraphMarker", { link = "Comment", default = true })
+  vim.api.nvim_set_hl(0, "CommentGraphKeyword", { link = "Todo", default = true })
+  vim.api.nvim_set_hl(0, "CommentGraphId", { link = "Identifier", default = true })
+  vim.api.nvim_set_hl(0, "CommentGraphLoc", { link = "Directory", default = true })
+  vim.api.nvim_set_hl(0, "CommentGraphError", { link = "DiagnosticError", default = true })
+  vim.api.nvim_set_hl(0, "CommentGraphWarn", { link = "DiagnosticWarn", default = true })
   hl_defined = true
 end
 
@@ -166,7 +166,7 @@ local function open_windows(tree_buf, preview_buf)
     row = dims.row,
     col = dims.col,
     border = "rounded",
-    title = " TODO Graph ",
+    title = " Comment Graph ",
     title_pos = "center",
     style = "minimal",
   })
@@ -236,7 +236,7 @@ end
 -- Build roots, adjacency, and parent map for the tree render.
 local function build_index(g)
   return graph_utils.build_index {
-    todos = graph_utils.normalize_todos(g.todos or {}),
+    nodes = graph_utils.normalize_nodes(g.nodes or g.todos or {}),
     edges = graph_utils.normalize_edges(g.edges or {}),
   }
 end
@@ -278,7 +278,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     end
     local errors = error_msgs and error_msgs[id] or nil
     local error_text
-    local error_group = "TodoGraphError"
+    local error_group = "CommentGraphError"
     if errors and #errors > 0 then
       local has_unknown = false
       local has_other = false
@@ -290,7 +290,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
         end
       end
       if has_unknown and not has_other then
-        error_group = "TodoGraphWarn"
+        error_group = "CommentGraphWarn"
       end
       error_text = "⚠ " .. table.concat(errors, "; ")
     end
@@ -328,7 +328,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index, e
     append_line(r, 0)
   end
   if #lines == 0 then
-    lines = { "(no TODOs found)" }
+    lines = { "(no comment nodes found)" }
   end
   return lines, line_meta
 end
@@ -346,7 +346,7 @@ local function highlight_tree(view, lines)
       api.nvim_buf_add_highlight(
         view.buf,
         view.ns,
-        "TodoGraphMarker",
+        "CommentGraphMarker",
         idx - 1,
         marker_start,
         marker_end
@@ -354,12 +354,12 @@ local function highlight_tree(view, lines)
     end
     if meta and meta.error_span then
       local es = meta.error_span
-      local group = meta.error_group or "TodoGraphError"
+      local group = meta.error_group or "CommentGraphError"
       api.nvim_buf_add_highlight(view.buf, view.ns, group, idx - 1, es[1], es[2])
     end
     if meta and meta.loc_span then
       local ls = meta.loc_span
-      api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphLoc", idx - 1, ls[1], ls[2])
+      api.nvim_buf_add_highlight(view.buf, view.ns, "CommentGraphLoc", idx - 1, ls[1], ls[2])
     end
   end
 end
@@ -375,7 +375,7 @@ function View:update_preview()
   local id = self.line_to_id[row]
   if not (id and self.todos and self.todos[id]) then
     ui.buf_set_option(self.preview_buf, "modifiable", true)
-    api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, { "(select a TODO to preview)" })
+    api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, { "(select a node to preview)" })
     ui.buf_set_option(self.preview_buf, "modifiable", false)
     api.nvim_buf_clear_namespace(self.preview_buf, self.ns, 0, -1)
     self.highlight_line = nil
@@ -428,7 +428,7 @@ function View:refresh()
   local cwd = uv.cwd and uv.cwd() or vim.fn.getcwd()
   self.dir = vim.fn.fnamemodify(self.dir or (cwd or "."), ":p")
 
-  local graph, err = todo.graph { dir = self.dir }
+  local graph_data, err = graph.graph { dir = self.dir }
   if err then
     ui.buf_set_option(self.buf, "modifiable", true)
     local err_lines = vim.split(err, "\n", { plain = true, trimempty = true })
@@ -442,9 +442,9 @@ function View:refresh()
     return
   end
 
-  local roots, children, parents, todos = build_index(graph)
+  local roots, children, parents, todos = build_index(graph_data)
   local error_msgs = {}
-  local rep = graph.report or {}
+  local rep = graph_data.report or {}
   local function to_list(value)
     if type(value) ~= "table" then
       return {}
@@ -543,7 +543,7 @@ local function open_file_at_cursor(view)
   local todo_item = view.todos[id]
   local path = graph_utils.resolve_path(view.dir, todo_item.file)
   if not path or vim.fn.filereadable(path) ~= 1 then
-    vim.notify("TODO file not found: " .. (todo_item.file or "?"), vim.log.levels.WARN)
+    vim.notify("Node file not found: " .. (todo_item.file or "?"), vim.log.levels.WARN)
     return
   end
   local lnum = tonumber(todo_item.line) or 1
@@ -669,7 +669,7 @@ local function set_keymaps(view)
     end
   end)
 
-  local group = api.nvim_create_augroup("TodoGraphView" .. view.buf, { clear = true })
+  local group = api.nvim_create_augroup("CommentGraphView" .. view.buf, { clear = true })
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = group,
     buffer = view.buf,
@@ -684,7 +684,7 @@ function View.open(opts)
   opts = opts or {}
   local view = setmetatable({}, View)
   view.dir = opts.dir
-  view.buf = ui.create_buf "todo-graph"
+  view.buf = ui.create_buf "comment-graph"
   view.preview_buf = ui.create_buf()
   view.win, view.preview_win, view.footer_win, view.footer_buf =
     open_windows(view.buf, view.preview_buf)
@@ -694,7 +694,7 @@ function View.open(opts)
   view.file_cache = {}
   view.move_source = nil
   view.parents = {}
-  view.ns = api.nvim_create_namespace "todo_graph_view"
+  view.ns = api.nvim_create_namespace "comment_graph_view"
   view.todos = {}
 
   set_keymaps(view)

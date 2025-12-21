@@ -13,11 +13,6 @@ local function file_exists(path)
   return path and uv.fs_stat(path) ~= nil
 end
 
-function M.graph_exists(root)
-  local base = vim.fn.fnamemodify(root or ".", ":p")
-  return file_exists(base .. "/.todo-graph") or file_exists(base .. "/.todo-graph.json")
-end
-
 function M.resolve_path(root, path)
   if not path or path == "" then
     return nil
@@ -29,36 +24,39 @@ function M.resolve_path(root, path)
   return vim.fn.fnamemodify(root .. "/" .. path, ":p")
 end
 
-function M.normalize_todos(raw)
+function M.graph_exists(root)
+  local base = vim.fn.fnamemodify(root or ".", ":p")
+  return file_exists(base .. "/.comment-graph") or file_exists(base .. "/.comment-graph.json")
+end
+
+function M.normalize_nodes(raw)
   if type(raw) ~= "table" then
     return {}
   end
-  local todos = {}
+  local nodes = {}
   if is_list(raw) then
     for _, t in ipairs(raw) do
       local id = t and (t.id or t.ID)
       if type(id) == "string" then
-        todos[id] = {
+        nodes[id] = {
           id = id,
           file = t.file or t.File,
           line = t.line or t.Line,
-          keyword = t.keyword or t.Keyword,
         }
       end
     end
   else
     for id, t in pairs(raw) do
       if type(id) == "string" and type(t) == "table" then
-        todos[id] = {
+        nodes[id] = {
           id = id,
           file = t.file or t.File,
           line = t.line or t.Line,
-          keyword = t.keyword or t.Keyword,
         }
       end
     end
   end
-  return todos
+  return nodes
 end
 
 function M.normalize_edges(raw)
@@ -79,13 +77,13 @@ function M.normalize_edges(raw)
 end
 
 function M.build_index(g)
-  local todos = M.normalize_todos(g.todos or {})
+  local nodes = M.normalize_nodes(g.nodes or g.todos or {})
   local edges = M.normalize_edges(g.edges or {})
 
   local children = {}
   local parents = {}
   local indegree = {}
-  for id in pairs(todos) do
+  for id in pairs(nodes) do
     indegree[id] = 0
     children[id] = {}
     parents[id] = {}
@@ -123,7 +121,7 @@ function M.build_index(g)
   end
   table.sort(roots)
 
-  return roots, children, parents, todos
+  return roots, children, parents, nodes
 end
 
 return M
