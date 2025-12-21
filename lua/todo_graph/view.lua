@@ -438,14 +438,19 @@ function View:refresh()
     if type(e) == "table" then
       local from = e.from or e.From
       local to = e.to or e.To
-      local msg = "undefined edge"
-      if type(from) == "string" then
+      local from_exists = type(from) == "string" and todos[from] ~= nil
+      local to_exists = type(to) == "string" and todos[to] ~= nil
+
+      if from_exists and not to_exists then
         error_msgs[from] = error_msgs[from] or {}
-        table.insert(error_msgs[from], msg)
+        table.insert(error_msgs[from], string.format("undefined edge -> %s", to or "?"))
       end
-      if type(to) == "string" then
+      if to_exists and not from_exists then
         error_msgs[to] = error_msgs[to] or {}
-        table.insert(error_msgs[to], msg)
+        table.insert(error_msgs[to], string.format("missing dependency %s", from or "?"))
+      end
+      if not from_exists and not to_exists then
+        -- neither endpoint is in the graph; nothing to attach to the tree
       end
     end
   end
