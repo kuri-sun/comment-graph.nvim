@@ -75,11 +75,11 @@ local function load_file_lines(cache, path)
   return data
 end
 
-local function todo_label(todo_item)
-  if not todo_item then
+local function node_label(node_item)
+  if not node_item then
     return nil, nil
   end
-  local id = todo_item.id or todo_item.ID
+  local id = node_item.id or node_item.ID
   return id or nil, nil
 end
 
@@ -206,25 +206,25 @@ end
 -- Build roots, adjacency, and parent map for the tree render.
 local function build_index(g)
   return graph_utils.build_index {
-    nodes = graph_utils.normalize_nodes(g.nodes or g.todos or {}),
+    nodes = graph_utils.normalize_nodes(g.nodes or g.nodes or {}),
     edges = graph_utils.normalize_edges(g.edges or {}),
   }
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
-local function render_tree(view, roots, children, todos, expanded, line_index, error_msgs)
+local function render_tree(view, roots, children, nodes, expanded, line_index, error_msgs)
   local lines = {}
   local line_meta = {}
   local icons = get_icons()
   local function append_line(id, depth)
-    local todo_item = todos[id]
-    local loc = todo_item and todo_item.file or ""
-    if loc ~= "" and todo_item and todo_item.line then
-      loc = string.format("%s:%s", loc, todo_item.line)
+    local node_item = nodes[id]
+    local loc = node_item and node_item.file or ""
+    if loc ~= "" and node_item and node_item.line then
+      loc = string.format("%s:%s", loc, node_item.line)
     end
     local label = nil
     do
-      local lbl = todo_label(view, todo_item)
+      local lbl = todo_label(view, node_item)
       if type(lbl) == "string" then
         label = lbl
       end
@@ -343,7 +343,7 @@ function View:update_preview()
 
   local row = api.nvim_win_get_cursor(self.win)[1]
   local id = self.line_to_id[row]
-  if not (id and self.todos and self.todos[id]) then
+  if not (id and self.nodes and self.nodes[id]) then
     ui.buf_set_option(self.preview_buf, "modifiable", true)
     api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, { "(select a node to preview)" })
     ui.buf_set_option(self.preview_buf, "modifiable", false)
@@ -352,9 +352,9 @@ function View:update_preview()
     return
   end
 
-  local todo_item = self.todos[id]
-  local path = graph_utils.resolve_path(self.dir, todo_item.file)
-  local lnum = tonumber(todo_item.line) or 1
+  local node_item = self.nodes[id]
+  local path = graph_utils.resolve_path(self.dir, node_item.file)
+  local lnum = tonumber(node_item.line) or 1
   self.highlight_line = nil
 
   set_preview_title(self.preview_win, path and vim.fn.fnamemodify(path, ":~:.") or "(unknown file)")
@@ -412,7 +412,7 @@ function View:refresh()
     return
   end
 
-  local roots, children, parents, todos = build_index(graph_data)
+  local roots, children, parents, nodes = build_index(graph_data)
   local error_msgs = {}
   local rep = graph_data.report or {}
   local function to_list(value)
@@ -451,14 +451,14 @@ function View:refresh()
       table.insert(error_msgs[id], "isolated")
     end
   end
-  self.todos = todos
+  self.nodes = nodes
   self.parents = parents or {}
   self.move_source = nil
   self.line_to_id = {}
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
   local tree_lines, tree_meta =
-    render_tree(self, roots, children, todos, self.expanded, tree_line_to_id, error_msgs)
+    render_tree(self, roots, children, nodes, self.expanded, tree_line_to_id, error_msgs)
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
@@ -507,16 +507,16 @@ end
 local function open_file_at_cursor(view)
   local row = api.nvim_win_get_cursor(view.win)[1]
   local id = view.line_to_id[row]
-  if not (id and view.todos and view.todos[id]) then
+  if not (id and view.nodes and view.nodes[id]) then
     return
   end
-  local todo_item = view.todos[id]
-  local path = graph_utils.resolve_path(view.dir, todo_item.file)
+  local node_item = view.nodes[id]
+  local path = graph_utils.resolve_path(view.dir, node_item.file)
   if not path or vim.fn.filereadable(path) ~= 1 then
-    vim.notify("Node file not found: " .. (todo_item.file or "?"), vim.log.levels.WARN)
+    vim.notify("Node file not found: " .. (node_item.file or "?"), vim.log.levels.WARN)
     return
   end
-  local lnum = tonumber(todo_item.line) or 1
+  local lnum = tonumber(node_item.line) or 1
   close_all(view)
   vim.cmd(string.format("edit %s", vim.fn.fnameescape(path)))
   pcall(api.nvim_win_set_cursor, 0, { lnum, 0 })
@@ -665,7 +665,7 @@ function View.open(opts)
   view.move_source = nil
   view.parents = {}
   view.ns = api.nvim_create_namespace "comment_graph_view"
-  view.todos = {}
+  view.nodes = {}
 
   set_keymaps(view)
   set_footer(view, instructions_normal)
