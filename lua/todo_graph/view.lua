@@ -438,7 +438,7 @@ function View:refresh()
     if type(e) == "table" then
       local from = e.from or e.From
       local to = e.to or e.To
-      local msg = string.format("undefined edge %s -> %s", from or "?", to or "?")
+      local msg = "undefined edge"
       if type(from) == "string" then
         error_msgs[from] = error_msgs[from] or {}
         table.insert(error_msgs[from], msg)
