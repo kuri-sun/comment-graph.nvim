@@ -222,13 +222,7 @@ local function render_tree(view, roots, children, nodes, expanded, line_index, e
     if loc ~= "" and node_item and node_item.line then
       loc = string.format("%s:%s", loc, node_item.line)
     end
-    local label = nil
-    do
-      local lbl = todo_label(view, node_item)
-      if type(lbl) == "string" then
-        label = lbl
-      end
-    end
+    local label = node_label(node_item)
     local kids = children[id] or {}
     local has_children = #kids > 0
     if expanded[id] == nil then
