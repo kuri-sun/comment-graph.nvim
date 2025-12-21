@@ -75,50 +75,12 @@ local function load_file_lines(cache, path)
   return data
 end
 
-local function todo_label(view, todo_item)
-  if not todo_item or not todo_item.file then
+local function todo_label(todo_item)
+  if not todo_item then
     return nil, nil
   end
-  local path = graph_utils.resolve_path(view.dir, todo_item.file)
-  if not path then
-    return nil, nil
-  end
-  local lines = load_file_lines(view.file_cache, path)
-  if not lines then
-    return nil, nil
-  end
-  local lnum = tonumber(todo_item.line) or 1
-  local line = lines[lnum]
-  if not line then
-    return nil, nil
-  end
-  line = trim_comment_prefix(line)
-  line = line:gsub("^%s*", ""):gsub("%s*$", "")
-  if line == "" then
-    return nil, nil
-  end
-
-  local meta_id = line:match "^@cgraph%-id%s*:?%s*(.+)$"
-  if meta_id then
-    meta_id = meta_id:gsub("%s+$", "")
-    if meta_id ~= "" then
-      return meta_id, nil
-    end
-  end
-
-  local keyword, rest = line:match "^([A-Z][A-Z0-9_-]*)[:]%s*(.*)"
-  if not keyword then
-    keyword, rest = line:match "^([A-Z][A-Z0-9_-]*)%s+(.*)"
-  end
-  local label = line
-  if keyword then
-    if rest and rest ~= "" then
-      label = keyword .. ": " .. rest
-    else
-      label = keyword
-    end
-  end
-  return label, keyword
+  local id = todo_item.id or todo_item.ID
+  return id or nil, nil
 end
 
 local function set_footer(view, text)
