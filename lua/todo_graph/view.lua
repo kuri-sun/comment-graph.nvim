@@ -118,6 +118,58 @@ local function todo_label(view, todo_item)
   return label, keyword
 end
 
+local function report_lines(report)
+  if type(report) ~= "table" then
+    return {}
+  end
+  local lines = {}
+  local scan_errors = report.scanErrors or report.ScanErrors or {}
+  if #scan_errors > 0 then
+    table.insert(lines, "Scan errors:")
+    for _, err in ipairs(scan_errors) do
+      local file = err.file or err.File or "?"
+      local line = err.line or err.Line or "?"
+      local msg = err.msg or err.Msg or ""
+      table.insert(lines, string.format("  - %s:%s %s", file, line, msg))
+    end
+  end
+
+  local undefined = report.undefinedEdges or report.UndefinedEdges or {}
+  if #undefined > 0 then
+    table.insert(lines, "Undefined edges:")
+    for _, e in ipairs(undefined) do
+      local from = e.from or e.From or "?"
+      local to = e.to or e.To or "?"
+      table.insert(lines, string.format("  - %s -> %s", from, to))
+    end
+  end
+
+  local cycles = report.cycles or report.Cycles or {}
+  if #cycles > 0 then
+    table.insert(lines, "Cycles:")
+    for _, c in ipairs(cycles) do
+      if type(c) == "table" then
+        table.insert(lines, "  - " .. table.concat(c, " -> "))
+      end
+    end
+  end
+
+  local isolated = report.isolated or report.Isolated or {}
+  if #isolated > 0 then
+    table.insert(lines, "Isolated TODOs:")
+    table.insert(lines, "  - " .. table.concat(isolated, ", "))
+  end
+
+  if report.mismatch or report.Mismatch then
+    table.insert(lines, ".todo-graph is out of date (regenerate)")
+  end
+
+  if #lines > 0 then
+    table.insert(lines, 1, "Validation issues found:")
+  end
+  return lines
+end
+
 -- Compute layout sizes/positions for tree, preview, and footer.
 local function layout()
   local total_width = math.max(80, math.floor(vim.o.columns * 0.9))
@@ -404,27 +456,9 @@ function View:update_preview()
 end
 
 function View:refresh()
-  -- Regenerate graph (temp JSON) and re-render panes; bail with a friendly
-  -- message if no .todo-graph exists at the root.
+  -- Regenerate graph (streamed JSON) and re-render panes.
   local cwd = uv.cwd and uv.cwd() or vim.fn.getcwd()
   self.dir = vim.fn.fnamemodify(self.dir or (cwd or "."), ":p")
-
-  if not graph_utils.graph_exists(self.dir) then
-    local msg = {
-      "No .todo-graph or .todo-graph.json found.",
-      "Root: " .. vim.fn.fnamemodify(self.dir, ":~"),
-    }
-    self.line_to_id = {}
-    self.todos = {}
-    ui.buf_set_option(self.buf, "modifiable", true)
-    api.nvim_buf_set_lines(self.buf, 0, -1, false, msg)
-    ui.buf_set_option(self.buf, "modifiable", false)
-    ui.buf_set_option(self.preview_buf, "modifiable", true)
-    api.nvim_buf_set_lines(self.preview_buf, 0, -1, false, { "(no graph to preview)" })
-    ui.buf_set_option(self.preview_buf, "modifiable", false)
-    set_preview_title(self.preview_win, "No graph")
-    return
-  end
 
   local graph, err = todo.graph { dir = self.dir }
   if err then
@@ -440,18 +474,43 @@ function View:refresh()
     return
   end
 
+  local validation = report_lines(graph.report)
   local roots, children, parents, todos = build_index(graph)
   self.todos = todos
   self.parents = parents or {}
   self.move_source = nil
   self.line_to_id = {}
   set_footer(self, instructions_normal)
-  local lines
-  lines, self.line_meta = render_tree(self, roots, children, todos, self.expanded, self.line_to_id)
+  local tree_line_to_id = {}
+  local tree_lines, tree_meta = render_tree(self, roots, children, todos, self.expanded, tree_line_to_id)
+
+  local lines = {}
+  local line_meta = {}
+
+  local function append(line, meta, id)
+    table.insert(lines, line)
+    line_meta[#lines] = meta
+    if id then
+      self.line_to_id[#lines] = id
+    end
+  end
+
+  if #validation > 0 then
+    for _, l in ipairs(validation) do
+      append(l, nil, nil)
+    end
+    append("", nil, nil)
+  end
+
+  for idx, line in ipairs(tree_lines) do
+    append(line, tree_meta[idx], tree_line_to_id[idx])
+  end
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
   ui.buf_set_option(self.buf, "modifiable", false)
+  self.line_meta = line_meta
+  self.lines = lines
   highlight_tree(self, lines)
   self:update_preview()
 end
