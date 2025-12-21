@@ -336,7 +336,7 @@ end
 local function highlight_tree(view, lines)
   ensure_highlights()
   api.nvim_buf_clear_namespace(view.buf, view.ns, 0, -1)
-  for idx, line in ipairs(lines) do
+  for idx, _ in ipairs(lines) do
     local meta = view.line_meta and view.line_meta[idx] or nil
     local marker_len = meta and meta.marker_len or 0
     local prefix_len = meta and meta.prefix_len or 0
@@ -587,7 +587,7 @@ local function move_to_target(view)
     table.insert(new_parents, 1, target)
   end
 
-  local _, err = todo.move {
+  local _, err = graph.move {
     dir = view.dir,
     id = view.move_source,
     parent = target,
