@@ -130,7 +130,7 @@ local function layout()
   local usable = total_width - gap
   local tree_width = math.max(35, math.floor(usable * 0.55))
   local preview_width = math.max(30, total_width - tree_width - gap)
-  local height = math.max(24, math.floor(vim.o.lines * 0.8))
+  local height = math.max(24, math.floor(vim.o.lines * 0.75))
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - (tree_width + gap + preview_width)) / 2)
   return {
@@ -355,25 +355,11 @@ local function highlight_tree(view, lines)
     if meta and meta.error_span then
       local es = meta.error_span
       local group = meta.error_group or "TodoGraphError"
-      api.nvim_buf_add_highlight(
-        view.buf,
-        view.ns,
-        group,
-        idx - 1,
-        es[1],
-        es[2]
-      )
+      api.nvim_buf_add_highlight(view.buf, view.ns, group, idx - 1, es[1], es[2])
     end
     if meta and meta.loc_span then
       local ls = meta.loc_span
-      api.nvim_buf_add_highlight(
-        view.buf,
-        view.ns,
-        "TodoGraphLoc",
-        idx - 1,
-        ls[1],
-        ls[2]
-      )
+      api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphLoc", idx - 1, ls[1], ls[2])
     end
   end
 end
@@ -475,7 +461,7 @@ function View:refresh()
       end
       if type(to) == "string" then
         error_msgs[to] = error_msgs[to] or {}
-        table.insert(error_msgs[to], string.format("unknown dependency \"%s\"", from or "?"))
+        table.insert(error_msgs[to], string.format('unknown dependency "%s"', from or "?"))
       end
     end
   end
@@ -501,7 +487,8 @@ function View:refresh()
   self.line_to_id = {}
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
-  local tree_lines, tree_meta = render_tree(self, roots, children, todos, self.expanded, tree_line_to_id, error_msgs)
+  local tree_lines, tree_meta =
+    render_tree(self, roots, children, todos, self.expanded, tree_line_to_id, error_msgs)
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
