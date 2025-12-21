@@ -32,6 +32,7 @@ local function ensure_highlights()
   vim.api.nvim_set_hl(0, "TodoGraphKeyword", { link = "Todo", default = true })
   vim.api.nvim_set_hl(0, "TodoGraphId", { link = "Identifier", default = true })
   vim.api.nvim_set_hl(0, "TodoGraphLoc", { link = "Directory", default = true })
+  vim.api.nvim_set_hl(0, "TodoGraphError", { link = "DiagnosticError", default = true })
   hl_defined = true
 end
 
@@ -122,58 +123,7 @@ local function report_lines(report)
   if type(report) ~= "table" then
     return {}
   end
-  local function to_list(value)
-    if type(value) ~= "table" then
-      return {}
-    end
-    return value
-  end
-  local lines = {}
-  local scan_errors = to_list(report.scanErrors or report.ScanErrors)
-  if #scan_errors > 0 then
-    table.insert(lines, "Scan errors:")
-    for _, err in ipairs(scan_errors) do
-      local file = err.file or err.File or "?"
-      local line = err.line or err.Line or "?"
-      local msg = err.msg or err.Msg or ""
-      table.insert(lines, string.format("  - %s:%s %s", file, line, msg))
-    end
-  end
-
-  local undefined = to_list(report.undefinedEdges or report.UndefinedEdges)
-  if #undefined > 0 then
-    table.insert(lines, "Undefined edges:")
-    for _, e in ipairs(undefined) do
-      local from = e.from or e.From or "?"
-      local to = e.to or e.To or "?"
-      table.insert(lines, string.format("  - %s -> %s", from, to))
-    end
-  end
-
-  local cycles = to_list(report.cycles or report.Cycles)
-  if #cycles > 0 then
-    table.insert(lines, "Cycles:")
-    for _, c in ipairs(cycles) do
-      if type(c) == "table" then
-        table.insert(lines, "  - " .. table.concat(c, " -> "))
-      end
-    end
-  end
-
-  local isolated = to_list(report.isolated or report.Isolated)
-  if #isolated > 0 then
-    table.insert(lines, "Isolated TODOs:")
-    table.insert(lines, "  - " .. table.concat(isolated, ", "))
-  end
-
-  if report.mismatch or report.Mismatch then
-    table.insert(lines, ".todo-graph is out of date (regenerate)")
-  end
-
-  if #lines > 0 then
-    table.insert(lines, 1, "Validation issues found:")
-  end
-  return lines
+  return {}
 end
 
 -- Compute layout sizes/positions for tree, preview, and footer.
@@ -295,7 +245,7 @@ local function build_index(g)
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
-local function render_tree(view, roots, children, todos, expanded, line_index)
+local function render_tree(view, roots, children, todos, expanded, line_index, error_ids)
   local lines = {}
   local line_meta = {}
   local icons = get_icons()
@@ -332,6 +282,7 @@ local function render_tree(view, roots, children, todos, expanded, line_index)
       marker_len = #marker,
       prefix_len = #prefix,
       has_loc = loc ~= "",
+      has_error = error_ids and error_ids[id] or false,
     }
     if has_children and expanded[id] then
       for _, child in ipairs(kids) do
@@ -358,6 +309,10 @@ local function highlight_tree(view, lines)
     local marker_len = meta and meta.marker_len or 0
     local prefix_len = meta and meta.prefix_len or 0
     local has_loc = meta and meta.has_loc
+    local has_error = meta and meta.has_error
+    if has_error then
+      api.nvim_buf_add_highlight(view.buf, view.ns, "TodoGraphError", idx - 1, 0, -1)
+    end
     local marker_start = prefix_len
     local marker_end = marker_start + marker_len
     if marker_len > 0 then
@@ -482,42 +437,55 @@ function View:refresh()
 
   local validation = report_lines(graph.report)
   local roots, children, parents, todos = build_index(graph)
+  local error_ids = {}
+  local rep = graph.report or {}
+  local function to_list(value)
+    if type(value) ~= "table" then
+      return {}
+    end
+    return value
+  end
+  for _, e in ipairs(to_list(rep.undefinedEdges or rep.UndefinedEdges)) do
+    if type(e) == "table" then
+      local from = e.from or e.From
+      local to = e.to or e.To
+      if type(from) == "string" then
+        error_ids[from] = true
+      end
+      if type(to) == "string" then
+        error_ids[to] = true
+      end
+    end
+  end
+  for _, cycle in ipairs(to_list(rep.cycles or rep.Cycles)) do
+    if type(cycle) == "table" then
+      for _, id in ipairs(cycle) do
+        if type(id) == "string" then
+          error_ids[id] = true
+        end
+      end
+    end
+  end
+  for _, id in ipairs(to_list(rep.isolated or rep.Isolated)) do
+    if type(id) == "string" then
+      error_ids[id] = true
+    end
+  end
   self.todos = todos
   self.parents = parents or {}
   self.move_source = nil
   self.line_to_id = {}
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
-  local tree_lines, tree_meta = render_tree(self, roots, children, todos, self.expanded, tree_line_to_id)
-
-  local lines = {}
-  local line_meta = {}
-
-  local function append(line, meta, id)
-    table.insert(lines, line)
-    line_meta[#lines] = meta
-    if id then
-      self.line_to_id[#lines] = id
-    end
-  end
-
-  if #validation > 0 then
-    for _, l in ipairs(validation) do
-      append(l, nil, nil)
-    end
-    append("", nil, nil)
-  end
-
-  for idx, line in ipairs(tree_lines) do
-    append(line, tree_meta[idx], tree_line_to_id[idx])
-  end
+  local tree_lines, tree_meta = render_tree(self, roots, children, todos, self.expanded, tree_line_to_id, error_ids)
 
   ui.buf_set_option(self.buf, "modifiable", true)
-  api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
+  api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
   ui.buf_set_option(self.buf, "modifiable", false)
-  self.line_meta = line_meta
-  self.lines = lines
-  highlight_tree(self, lines)
+  self.line_meta = tree_meta
+  self.lines = tree_lines
+  self.line_to_id = tree_line_to_id
+  highlight_tree(self, tree_lines)
   self:update_preview()
 end
 
