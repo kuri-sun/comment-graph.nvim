@@ -48,6 +48,16 @@ local function node_label(node_item)
   return id or nil, nil
 end
 
+local function node_matches(filter, node_item)
+  if not filter or filter == "" or not node_item then
+    return true
+  end
+  local hay =
+    table.concat({ node_item.id or "", node_item.label or "", node_item.file or "" }, " \0")
+  hay = hay:lower()
+  return hay:find(filter:lower(), 1, true) ~= nil
+end
+
 local function file_icon(file)
   if not file or file == "" then
     return ""
@@ -191,12 +201,15 @@ local function build_index(g)
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
-local function render_tree(roots, children, nodes, expanded, line_index, error_msgs)
+local function render_tree(roots, children, nodes, expanded, line_index, error_msgs, filter)
   local lines = {}
   local line_meta = {}
   local icons = get_icons()
   local function append_line(id, depth)
     local node_item = nodes[id]
+    if not node_matches(filter, node_item) then
+      return
+    end
     local loc = node_item and node_item.file or ""
     if loc ~= "" and node_item and node_item.line then
       loc = string.format("%s:%s", loc, node_item.line)
@@ -392,6 +405,26 @@ function View:refresh()
   end
 
   local roots, children, parents, nodes = build_index(graph_data)
+  local filter = self.filter or ""
+  if filter ~= "" then
+    local visible = {}
+    for id, node in pairs(nodes) do
+      if node_matches(filter, node) then
+        visible[id] = true
+      end
+    end
+    local filtered_edges = {}
+    for _, e in ipairs(graph_data.edges or {}) do
+      if visible[e.from] and visible[e.to] then
+        table.insert(filtered_edges, e)
+      end
+    end
+    local filtered_nodes = {}
+    for id in pairs(visible) do
+      filtered_nodes[id] = nodes[id]
+    end
+    roots, children, parents, nodes = build_index { nodes = filtered_nodes, edges = filtered_edges }
+  end
   local error_msgs = {}
   local rep = graph_data.report or {}
   local function to_list(value)
@@ -437,7 +470,20 @@ function View:refresh()
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
   local tree_lines, tree_meta =
-    render_tree(roots, children, nodes, self.expanded, tree_line_to_id, error_msgs)
+    render_tree(roots, children, nodes, self.expanded, tree_line_to_id, error_msgs, filter)
+
+  local header = "Filter: " .. (filter ~= "" and filter or "(none)")
+  table.insert(tree_lines, 1, header)
+  local shifted_meta = {}
+  for idx, meta in pairs(tree_meta) do
+    shifted_meta[idx + 1] = meta
+  end
+  tree_meta = shifted_meta
+  local shifted_ids = {}
+  for idx, id in pairs(tree_line_to_id) do
+    shifted_ids[idx + 1] = id
+  end
+  tree_line_to_id = shifted_ids
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
@@ -610,6 +656,12 @@ local function set_keymaps(view)
     highlight_tree(view, view.lines or {})
   end)
 
+  map(view.buf, "/", function()
+    local new_filter = vim.fn.input("Filter: ", view.filter or "")
+    view.filter = new_filter
+    view:refresh()
+  end)
+
   map(view.buf, "<Esc>", function()
     if view.move_source then
       view.move_source = nil
@@ -633,6 +685,7 @@ function View.open(opts)
   opts = opts or {}
   local view = setmetatable({}, View)
   view.dir = opts.dir
+  view.filter = ""
   view.buf = ui.create_buf "comment-graph"
   view.preview_buf = ui.create_buf()
   view.win, view.preview_win, view.footer_win, view.footer_buf =
