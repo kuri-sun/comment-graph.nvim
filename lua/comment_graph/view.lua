@@ -48,6 +48,25 @@ local function node_label(node_item)
   return id or nil, nil
 end
 
+local function file_icon(file)
+  if not file or file == "" then
+    return ""
+  end
+  local ext = vim.fn.fnamemodify(file, ":e")
+  local map = {
+    tsx = "[tsx]",
+    ts = "[ts]",
+    jsx = "[jsx]",
+    js = "[js]",
+    go = "[go]",
+    rs = "[rs]",
+    py = "[py]",
+    md = "[md]",
+    lua = "[lua]",
+  }
+  return map[ext] or "[file]"
+end
+
 local function set_footer(view, text)
   if not (view.footer_buf and api.nvim_buf_is_valid(view.footer_buf)) then
     return
@@ -187,6 +206,7 @@ local function render_tree(roots, children, nodes, expanded, line_index, error_m
     if loc ~= "" and node_item and node_item.line then
       loc = string.format("%s:%s", loc, node_item.line)
     end
+    local icon = file_icon(node_item and node_item.file or nil)
     local label = node_label(node_item)
     local kids = children[id] or {}
     local has_children = #kids > 0
@@ -202,8 +222,16 @@ local function render_tree(roots, children, nodes, expanded, line_index, error_m
     local prefix = string.rep("  ", depth)
     local prefix_len = #prefix
     local display = label or id
+    local loc_span
     if loc ~= "" then
-      display = string.format("%s %s", loc, display)
+      local icon_part = icon ~= "" and (icon .. " ") or ""
+      display = string.format("%s%s %s", icon_part, loc, display)
+      local loc_start = prefix_len + #marker + 1 + #icon_part
+      loc_span = { loc_start, loc_start + #loc }
+    else
+      if icon ~= "" then
+        display = string.format("%s %s", icon, display)
+      end
     end
     local errors = error_msgs and error_msgs[id] or nil
     local error_text
@@ -241,10 +269,7 @@ local function render_tree(roots, children, nodes, expanded, line_index, error_m
       prefix_len = prefix_len,
       error_span = error_span,
       error_group = error_group,
-      loc_span = loc ~= "" and {
-        prefix_len + #marker + 1,
-        prefix_len + #marker + 1 + #loc,
-      } or nil,
+      loc_span = loc_span,
     }
     if has_children and expanded[id] then
       for _, child in ipairs(kids) do
