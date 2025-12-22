@@ -52,19 +52,14 @@ local function file_icon(file)
   if not file or file == "" then
     return ""
   end
-  local ext = vim.fn.fnamemodify(file, ":e")
-  local map = {
-    tsx = "[tsx]",
-    ts = "[ts]",
-    jsx = "[jsx]",
-    js = "[js]",
-    go = "[go]",
-    rs = "[rs]",
-    py = "[py]",
-    md = "[md]",
-    lua = "[lua]",
-  }
-  return map[ext] or "[file]"
+  local ok, devicons = pcall(require, "nvim-web-devicons")
+  if ok and devicons.get_icon then
+    local icon = devicons.get_icon(file, nil, { default = true })
+    if icon then
+      return icon
+    end
+  end
+  return "[file]"
 end
 
 local function set_footer(view, text)
