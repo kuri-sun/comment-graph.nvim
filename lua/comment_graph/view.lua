@@ -3,6 +3,11 @@ local graph = require "comment_graph"
 local ui = require "comment_graph.ui"
 local graph_utils = require "comment_graph.graph_utils"
 
+-- UI layout:
+-- - tree pane (left) for navigating nodes
+-- - preview pane (right) for showing source context (read-only)
+-- - search input (top) for filtering
+-- - footer (bottom) for key hints/status
 local View = {}
 View.__index = View
 
@@ -637,6 +642,7 @@ local function open_file_at_cursor(view)
 end
 
 local function move_to_target(view)
+  -- Re-parent the node selected for "move" under the current cursor target.
   local row = api.nvim_win_get_cursor(view.win)[1]
   local target = view.line_to_id[row]
   if not (target and view.move_source and target ~= view.move_source) then
@@ -687,6 +693,7 @@ local function move_to_target(view)
 end
 
 local function set_keymaps(view)
+  -- Modal-ish controls: keep tree/search primary; preview is passive except for quit.
   -- Wire up core shortcuts across both panes.
   local function map(buf, lhs, fn)
     api.nvim_buf_set_keymap(buf, "n", lhs, "", {
@@ -784,6 +791,7 @@ local function set_keymaps(view)
         if view.updating_input then
           return
         end
+        -- Re-render tree on each edit of the filter text.
         local raw = api.nvim_buf_get_lines(view.input_buf, 0, -1, false)
         local line = table.concat(raw, " ")
         view.filter = line
@@ -907,6 +915,7 @@ function View.open(opts)
   set_input_value(view, "")
   view:refresh()
   if view.win and api.nvim_win_is_valid(view.win) then
+    -- Start in tree (Normal) to avoid accidental insert in search.
     api.nvim_set_current_win(view.win)
   end
 end
