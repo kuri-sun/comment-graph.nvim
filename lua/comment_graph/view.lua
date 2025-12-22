@@ -842,6 +842,11 @@ local function set_keymaps(view)
     api.nvim_buf_set_keymap(view.input_buf, "i", "<CR>", "", {
       noremap = true,
       callback = function()
+        -- prevent newline: capture current filter, reset to single line, exit insert, focus tree
+        local raw = api.nvim_buf_get_lines(view.input_buf, 0, -1, false)
+        local line = table.concat(raw, " ")
+        view.filter = line
+        set_input_value(view, line)
         -- focus tree while keeping current filter
         if view.win and api.nvim_win_is_valid(view.win) then
           api.nvim_set_current_win(view.win)
