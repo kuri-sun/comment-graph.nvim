@@ -891,13 +891,6 @@ function View.open(opts)
   ui.buf_set_option(view.input_buf, "filetype", "comment-graph-filter")
   ui.buf_set_option(view.input_buf, "swapfile", false)
   ui.buf_set_option(view.input_buf, "modifiable", true)
-  -- Keep search input lean: no completion menus or LSP hooks.
-  ui.buf_set_option(view.input_buf, "omnifunc", "")
-  ui.buf_set_option(view.input_buf, "completefunc", "")
-  local ok_cmp, cmp = pcall(require, "cmp")
-  if ok_cmp and cmp and cmp.setup and cmp.setup.buffer then
-    cmp.setup.buffer { enabled = false }
-  end
   view.input_win, view.win, view.preview_win, view.footer_win, view.footer_buf =
     open_windows(view.buf, view.preview_buf, view.input_buf)
   view.expanded = {}
