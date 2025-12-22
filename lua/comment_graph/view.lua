@@ -839,6 +839,16 @@ local function set_keymaps(view)
         end
       end,
     })
+    api.nvim_buf_set_keymap(view.input_buf, "i", "<CR>", "", {
+      noremap = true,
+      callback = function()
+        -- focus tree while keeping current filter
+        if view.win and api.nvim_win_is_valid(view.win) then
+          api.nvim_set_current_win(view.win)
+        end
+        vim.cmd.stopinsert()
+      end,
+    })
     api.nvim_buf_set_keymap(view.input_buf, "n", "q", "", {
       noremap = true,
       callback = function()
