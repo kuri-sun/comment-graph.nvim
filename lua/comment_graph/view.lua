@@ -114,11 +114,46 @@ local function set_preview_title(win, title)
   })
 end
 
+local function set_input_value(view, value)
+  if not (view.input_buf and api.nvim_buf_is_valid(view.input_buf)) then
+    return
+  end
+  view.updating_input = true
+  ui.buf_set_option(view.input_buf, "modifiable", true)
+  local line = value or ""
+  api.nvim_buf_set_lines(view.input_buf, 0, -1, false, { line })
+  if view.input_win and api.nvim_win_is_valid(view.input_win) then
+    pcall(api.nvim_win_set_cursor, view.input_win, { 1, #line })
+  end
+  view.updating_input = false
+end
+
 -- Create tree (left), preview (right), and footer (shortcuts) windows.
-local function open_windows(tree_buf, preview_buf)
+local function open_windows(tree_buf, preview_buf, input_buf)
   local dims = layout()
-  local tree_row = dims.row
-  local tree_height = dims.height
+  local input_row = dims.row
+  -- Input uses height=1 plus a rounded border (2 rows). Start tree below it.
+  local input_total = 1 + 2
+  local tree_row = input_row + input_total
+  local tree_height = math.max(1, dims.height - input_total)
+
+  local input_win = api.nvim_open_win(input_buf, false, {
+    relative = "editor",
+    width = dims.tree_width,
+    height = 1,
+    row = input_row,
+    col = dims.col,
+    border = "rounded",
+    title = " Search ",
+    title_pos = "center",
+    style = "minimal",
+  })
+  ui.win_set_option(input_win, "number", false)
+  ui.win_set_option(input_win, "relativenumber", false)
+  ui.win_set_option(input_win, "signcolumn", "no")
+  ui.win_set_option(input_win, "wrap", false)
+  ui.win_set_option(input_win, "winfixheight", true)
+
   local tree_win = api.nvim_open_win(tree_buf, true, {
     relative = "editor",
     width = dims.tree_width,
@@ -145,8 +180,8 @@ local function open_windows(tree_buf, preview_buf)
   local preview_win = api.nvim_open_win(preview_buf, false, {
     relative = "editor",
     width = dims.preview_width,
-    height = tree_height,
-    row = tree_row,
+    height = dims.height,
+    row = input_row,
     col = dims.col + dims.tree_width + dims.gap,
     border = "rounded",
     style = "minimal",
@@ -190,7 +225,7 @@ local function open_windows(tree_buf, preview_buf)
   ui.win_set_option(footer_win, "relativenumber", false)
   ui.win_set_option(footer_win, "signcolumn", "no")
 
-  return tree_win, preview_win, footer_win, footer_buf
+  return input_win, tree_win, preview_win, footer_win, footer_buf
 end
 
 -- Build roots, adjacency, and parent map for the tree render.
@@ -202,11 +237,24 @@ local function build_index(g)
 end
 
 -- Render tree lines and fill line_index[row]=id for quick lookup.
-local function render_tree(roots, children, nodes, expanded, line_index, error_msgs, filter)
+local function render_tree(
+  roots,
+  children,
+  nodes,
+  expanded,
+  line_index,
+  error_msgs,
+  filter,
+  allow,
+  highlight_term
+)
   local lines = {}
   local line_meta = {}
   local icons = get_icons()
   local function append_line(id, depth)
+    if allow and not allow[id] then
+      return
+    end
     local node_item = nodes[id]
     if not node_matches(filter, node_item) then
       return
@@ -271,6 +319,24 @@ local function render_tree(roots, children, nodes, expanded, line_index, error_m
     else
       line = string.format("%s%s %s", prefix, marker, display)
     end
+    local match_spans
+    if highlight_term and highlight_term ~= "" then
+      local ll = line:lower()
+      local lt = highlight_term:lower()
+      local start = 1
+      match_spans = {}
+      while true do
+        local s, e = ll:find(lt, start, true)
+        if not s then
+          break
+        end
+        table.insert(match_spans, { s - 1, e })
+        start = e + 1
+      end
+      if #match_spans == 0 then
+        match_spans = nil
+      end
+    end
     table.insert(lines, line)
     line_index[#lines] = id
     line_meta[#lines] = {
@@ -279,6 +345,7 @@ local function render_tree(roots, children, nodes, expanded, line_index, error_m
       error_span = error_span,
       error_group = error_group,
       loc_span = loc_span,
+      match_spans = match_spans,
     }
     if has_children and expanded[id] then
       for _, child in ipairs(kids) do
@@ -323,6 +390,11 @@ local function highlight_tree(view, lines)
     if meta and meta.loc_span then
       local ls = meta.loc_span
       api.nvim_buf_add_highlight(view.buf, view.ns, "CommentGraphLoc", idx - 1, ls[1], ls[2])
+    end
+    if meta and meta.match_spans then
+      for _, span in ipairs(meta.match_spans) do
+        api.nvim_buf_add_highlight(view.buf, view.ns, "MatchParen", idx - 1, span[1], span[2])
+      end
     end
   end
 end
@@ -407,24 +479,38 @@ function View:refresh()
 
   local roots, children, parents, nodes = build_index(graph_data)
   local filter = self.filter or ""
+  local render_filter = filter
+  local allow = nil
+  local highlight_term = filter
   if filter ~= "" then
-    local visible = {}
-    for id, node in pairs(nodes) do
-      if node_matches(filter, node) then
-        visible[id] = true
+    allow = {}
+    local function collect_subtree(id)
+      if allow[id] then
+        return
+      end
+      allow[id] = true
+      for _, child in ipairs(children[id] or {}) do
+        collect_subtree(child)
       end
     end
-    local filtered_edges = {}
-    for _, e in ipairs(graph_data.edges or {}) do
-      if visible[e.from] and visible[e.to] then
-        table.insert(filtered_edges, e)
+    local function subtree_has_match(id)
+      local self_match = node_matches(filter, nodes[id])
+      local child_match = false
+      for _, child in ipairs(children[id] or {}) do
+        if subtree_has_match(child) then
+          child_match = true
+        end
       end
+      if self_match or child_match then
+        collect_subtree(id)
+        return true
+      end
+      return false
     end
-    local filtered_nodes = {}
-    for id in pairs(visible) do
-      filtered_nodes[id] = nodes[id]
+    for _, r in ipairs(roots) do
+      subtree_has_match(r)
     end
-    roots, children, parents, nodes = build_index { nodes = filtered_nodes, edges = filtered_edges }
+    render_filter = "" -- allow governs visibility; render all kept nodes
   end
   local error_msgs = {}
   local rep = graph_data.report or {}
@@ -471,7 +557,17 @@ function View:refresh()
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
   local tree_lines, tree_meta =
-    render_tree(roots, children, nodes, self.expanded, tree_line_to_id, error_msgs, filter)
+    render_tree(
+      roots,
+      children,
+      nodes,
+      self.expanded,
+      tree_line_to_id,
+      error_msgs,
+      render_filter,
+      allow,
+      highlight_term
+    )
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
@@ -480,6 +576,18 @@ function View:refresh()
   self.lines = tree_lines
   self.line_to_id = tree_line_to_id
   highlight_tree(self, tree_lines)
+  if filter ~= "" then
+    local target
+    for idx, id in ipairs(tree_line_to_id) do
+      if node_matches(filter, nodes[id]) then
+        target = idx
+        break
+      end
+    end
+    if target then
+      pcall(api.nvim_win_set_cursor, self.win, { target, 0 })
+    end
+  end
   self:update_preview()
 end
 
@@ -510,7 +618,7 @@ end
 local function close_all(view)
   -- Close tree, preview, and footer windows.
   view.move_source = nil
-  for _, win in ipairs { view.win, view.preview_win, view.footer_win } do
+  for _, win in ipairs { view.input_win, view.win, view.preview_win, view.footer_win } do
     if win and api.nvim_win_is_valid(win) then
       api.nvim_win_close(win, true)
     end
@@ -645,9 +753,11 @@ local function set_keymaps(view)
   end)
 
   map(view.buf, "/", function()
-    local new_filter = vim.fn.input("Filter: ", view.filter or "")
-    view.filter = new_filter
-    view:refresh()
+    if view.input_win and api.nvim_win_is_valid(view.input_win) then
+      api.nvim_set_current_win(view.input_win)
+      set_input_value(view, view.filter or "")
+      vim.cmd.startinsert()
+    end
   end)
 
   map(view.buf, "<Esc>", function()
@@ -666,6 +776,108 @@ local function set_keymaps(view)
       view:update_preview()
     end,
   })
+
+  if view.input_buf then
+    local function move_selection(delta)
+      if not (view.win and api.nvim_win_is_valid(view.win)) then
+        return
+      end
+      local pos = api.nvim_win_get_cursor(view.win)
+      local target = math.max(1, math.min(#(view.lines or {}), pos[1] + delta))
+      api.nvim_win_set_cursor(view.win, { target, 0 })
+      view:update_preview()
+    end
+    local function move_input_col(delta)
+      if not (view.input_win and api.nvim_win_is_valid(view.input_win)) then
+        return
+      end
+      local pos = api.nvim_win_get_cursor(view.input_win)
+      local line = table.concat(api.nvim_buf_get_lines(view.input_buf, 0, 1, false), "")
+      local col = math.max(0, math.min(#line, (pos[2] or 0) + delta))
+      api.nvim_win_set_cursor(view.input_win, { 1, col })
+    end
+
+    api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+      group = group,
+      buffer = view.input_buf,
+      callback = function()
+        if view.updating_input then
+          return
+        end
+        local raw = api.nvim_buf_get_lines(view.input_buf, 0, -1, false)
+        local line = table.concat(raw, " ")
+        view.filter = line
+        view:refresh()
+      end,
+    })
+
+    api.nvim_buf_set_keymap(view.input_buf, "i", "<Esc>", "", {
+      noremap = true,
+      callback = function()
+        vim.cmd.stopinsert()
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "j", "", {
+      noremap = true,
+      callback = function()
+        move_selection(1)
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "k", "", {
+      noremap = true,
+      callback = function()
+        move_selection(-1)
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "h", "", {
+      noremap = true,
+      callback = function()
+        move_input_col(-1)
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "l", "", {
+      noremap = true,
+      callback = function()
+        move_input_col(1)
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "i", "", {
+      noremap = true,
+      callback = function()
+        if view.input_win and api.nvim_win_is_valid(view.input_win) then
+          api.nvim_set_current_win(view.input_win)
+          vim.cmd.startinsert()
+        end
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "<CR>", "", {
+      noremap = true,
+      callback = function()
+        -- focus tree; do not open file automatically
+        if view.win and api.nvim_win_is_valid(view.win) then
+          api.nvim_set_current_win(view.win)
+        end
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "q", "", {
+      noremap = true,
+      callback = function()
+        close_all(view)
+      end,
+    })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "<Space>", "", {
+      noremap = true,
+      callback = function()
+        local row = api.nvim_win_get_cursor(view.win)[1]
+        local id = view.line_to_id[row]
+        if not id then
+          return
+        end
+        view.expanded[id] = not view.expanded[id]
+        view:refresh()
+      end,
+    })
+  end
 end
 
 function View.open(opts)
@@ -674,10 +886,17 @@ function View.open(opts)
   local view = setmetatable({}, View)
   view.dir = opts.dir
   view.filter = ""
+  view.updating_input = false
   view.buf = ui.create_buf "comment-graph"
   view.preview_buf = ui.create_buf()
-  view.win, view.preview_win, view.footer_win, view.footer_buf =
-    open_windows(view.buf, view.preview_buf)
+  view.input_buf = ui.create_buf()
+  ui.buf_set_option(view.input_buf, "bufhidden", "wipe")
+  ui.buf_set_option(view.input_buf, "buftype", "nofile")
+  ui.buf_set_option(view.input_buf, "filetype", "comment-graph-filter")
+  ui.buf_set_option(view.input_buf, "swapfile", false)
+  ui.buf_set_option(view.input_buf, "modifiable", true)
+  view.input_win, view.win, view.preview_win, view.footer_win, view.footer_buf =
+    open_windows(view.buf, view.preview_buf, view.input_buf)
   view.expanded = {}
   view.line_to_id = {}
   view.line_meta = {}
@@ -689,7 +908,12 @@ function View.open(opts)
 
   set_keymaps(view)
   set_footer(view, instructions_normal)
+  set_input_value(view, "")
   view:refresh()
+  if view.input_win and api.nvim_win_is_valid(view.input_win) then
+    api.nvim_set_current_win(view.input_win)
+    vim.cmd.startinsert()
+  end
 end
 
 return View
