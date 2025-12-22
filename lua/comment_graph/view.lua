@@ -9,9 +9,9 @@ View.__index = View
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
 local instructions_normal =
-  "q: close   Enter: open file   / or i: search   Space: expand/collapse   Tab: switch pane"
+  "q: close   Enter: open file   i: search   Space: expand/collapse"
 local instructions_move =
-  "q: close   Esc: cancel move   Enter: open file   / or i: search   Space: expand/collapse   Tab: switch pane"
+  "q: close   Esc: cancel move   Enter: open file   i: search   Space: expand/collapse"
 
 local hl_defined = false
 
@@ -608,13 +608,6 @@ local function focus_tree(view)
   end
 end
 
-local function focus_preview(view)
-  -- Set focus to preview window if valid.
-  if view.preview_win and api.nvim_win_is_valid(view.preview_win) then
-    api.nvim_set_current_win(view.preview_win)
-  end
-end
-
 local function close_all(view)
   -- Close tree, preview, and footer windows.
   view.move_source = nil
@@ -725,20 +718,6 @@ local function set_keymaps(view)
     end
   end)
 
-  map(view.buf, "<Tab>", function()
-    focus_preview(view)
-  end)
-  map(view.buf, "<S-Tab>", function()
-    focus_tree(view)
-  end)
-
-  map(view.preview_buf, "<Tab>", function()
-    focus_tree(view)
-  end)
-  map(view.preview_buf, "<S-Tab>", function()
-    focus_tree(view)
-  end)
-
   map(view.buf, "<Space>", function()
     view:toggle_line()
   end)
@@ -759,10 +738,7 @@ local function set_keymaps(view)
     highlight_tree(view, view.lines or {})
   end)
 
-  map(view.buf, "/", focus_input)
   map(view.buf, "i", focus_input)
-  map(view.preview_buf, "/", focus_input)
-  map(view.preview_buf, "i", focus_input)
 
   map(view.buf, "<Esc>", function()
     if view.move_source then
