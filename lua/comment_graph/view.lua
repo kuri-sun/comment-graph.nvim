@@ -9,9 +9,9 @@ View.__index = View
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
 local instructions_normal =
-  "q: close   Enter: open file   Space: expand/collapse   Tab: switch pane"
+  "q: close   Enter: open file   / or i: search   Space: expand/collapse   Tab: switch pane"
 local instructions_move =
-  "q: close   Esc: cancel move   Enter: open file   Space: expand/collapse   Tab: switch pane"
+  "q: close   Esc: cancel move   Enter: open file   / or i: search   Space: expand/collapse   Tab: switch pane"
 
 local hl_defined = false
 
@@ -702,6 +702,13 @@ local function set_keymaps(view)
       callback = fn,
     })
   end
+  local function focus_input()
+    if view.input_win and api.nvim_win_is_valid(view.input_win) then
+      api.nvim_set_current_win(view.input_win)
+      set_input_value(view, view.filter or "")
+      vim.cmd.startinsert()
+    end
+  end
 
   map(view.buf, "q", function()
     close_all(view)
@@ -752,13 +759,10 @@ local function set_keymaps(view)
     highlight_tree(view, view.lines or {})
   end)
 
-  map(view.buf, "/", function()
-    if view.input_win and api.nvim_win_is_valid(view.input_win) then
-      api.nvim_set_current_win(view.input_win)
-      set_input_value(view, view.filter or "")
-      vim.cmd.startinsert()
-    end
-  end)
+  map(view.buf, "/", focus_input)
+  map(view.buf, "i", focus_input)
+  map(view.preview_buf, "/", focus_input)
+  map(view.preview_buf, "i", focus_input)
 
   map(view.buf, "<Esc>", function()
     if view.move_source then
