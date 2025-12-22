@@ -890,9 +890,8 @@ function View.open(opts)
   set_footer(view, instructions_normal)
   set_input_value(view, "")
   view:refresh()
-  if view.input_win and api.nvim_win_is_valid(view.input_win) then
-    api.nvim_set_current_win(view.input_win)
-    vim.cmd.startinsert()
+  if view.win and api.nvim_win_is_valid(view.win) then
+    api.nvim_set_current_win(view.win)
   end
 end
 
