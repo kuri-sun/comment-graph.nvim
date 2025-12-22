@@ -689,7 +689,6 @@ function View.open(opts)
 
   set_keymaps(view)
   set_footer(view, instructions_normal)
-  set_input_value(view, "")
   view:refresh()
 end
 
