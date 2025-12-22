@@ -119,10 +119,8 @@ local function set_input_value(view, value)
     return
   end
   view.updating_input = true
-  ui.buf_set_option(view.input_buf, "modifiable", true)
   local line = "Filter: " .. (value or "")
   api.nvim_buf_set_lines(view.input_buf, 0, -1, false, { line })
-  ui.buf_set_option(view.input_buf, "modifiable", false)
   pcall(api.nvim_win_set_cursor, view.input_win, { 1, #line })
   view.updating_input = false
 end
@@ -725,6 +723,7 @@ function View.open(opts)
   view.buf = ui.create_buf "comment-graph"
   view.preview_buf = ui.create_buf()
   view.input_buf = ui.create_buf()
+  ui.buf_set_option(view.input_buf, "modifiable", true)
   view.input_win, view.win, view.preview_win, view.footer_win, view.footer_buf =
     open_windows(view.buf, view.preview_buf, view.input_buf)
   view.expanded = {}
