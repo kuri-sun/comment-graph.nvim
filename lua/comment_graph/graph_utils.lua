@@ -42,6 +42,7 @@ function M.normalize_nodes(raw)
           id = id,
           file = t.file or t.File,
           line = t.line or t.Line,
+          label = t.label or t.Label,
         }
       end
     end
@@ -52,6 +53,7 @@ function M.normalize_nodes(raw)
           id = id,
           file = t.file or t.File,
           line = t.line or t.Line,
+          label = t.label or t.Label,
         }
       end
     end

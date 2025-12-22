@@ -40,6 +40,10 @@ local function node_label(node_item)
   if not node_item then
     return nil, nil
   end
+  local label = node_item.label or node_item.Label
+  if label and label ~= "" then
+    return label, nil
+  end
   local id = node_item.id or node_item.ID
   return id or nil, nil
 end
