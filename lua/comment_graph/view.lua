@@ -13,8 +13,7 @@ View.__index = View
 
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
-local instructions_normal =
-  "q: close   Enter: open file   i: search   Space: expand/collapse"
+local instructions_normal = "q: close   Enter: open file   i: search   Space: expand/collapse"
 local instructions_move =
   "q: close   Esc: cancel move   Enter: open file   i: search   Space: expand/collapse"
 
@@ -561,18 +560,17 @@ function View:refresh()
   self.line_to_id = {}
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
-  local tree_lines, tree_meta =
-    render_tree(
-      roots,
-      children,
-      nodes,
-      self.expanded,
-      tree_line_to_id,
-      error_msgs,
-      render_filter,
-      allow,
-      highlight_term
-    )
+  local tree_lines, tree_meta = render_tree(
+    roots,
+    children,
+    nodes,
+    self.expanded,
+    tree_line_to_id,
+    error_msgs,
+    render_filter,
+    allow,
+    highlight_term
+  )
 
   ui.buf_set_option(self.buf, "modifiable", true)
   api.nvim_buf_set_lines(self.buf, 0, -1, false, tree_lines)
@@ -604,13 +602,6 @@ function View:toggle_line()
   end
   self.expanded[id] = not self.expanded[id]
   self:refresh()
-end
-
-local function focus_tree(view)
-  -- Set focus to tree window if valid.
-  if view.win and api.nvim_win_is_valid(view.win) then
-    api.nvim_set_current_win(view.win)
-  end
 end
 
 local function close_all(view)
