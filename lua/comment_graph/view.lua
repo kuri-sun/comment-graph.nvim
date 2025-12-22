@@ -128,7 +128,9 @@ end
 -- Create input (top), tree (left), preview (right), and footer (shortcuts) windows.
 local function open_windows(tree_buf, preview_buf, input_buf)
   local dims = layout()
-  local input_row = math.max(1, dims.row - 2)
+  local input_row = dims.row
+  local tree_row = input_row + 1
+  local tree_height = math.max(1, dims.height - 1)
 
   local input_win = api.nvim_open_win(input_buf, false, {
     relative = "editor",
@@ -149,8 +151,8 @@ local function open_windows(tree_buf, preview_buf, input_buf)
   local tree_win = api.nvim_open_win(tree_buf, true, {
     relative = "editor",
     width = dims.tree_width,
-    height = dims.height,
-    row = dims.row,
+    height = tree_height,
+    row = tree_row,
     col = dims.col,
     border = "rounded",
     title = " Comment Graph ",
@@ -172,8 +174,8 @@ local function open_windows(tree_buf, preview_buf, input_buf)
   local preview_win = api.nvim_open_win(preview_buf, false, {
     relative = "editor",
     width = dims.preview_width,
-    height = dims.height,
-    row = dims.row,
+    height = tree_height,
+    row = tree_row,
     col = dims.col + dims.tree_width + dims.gap,
     border = "rounded",
     style = "minimal",
@@ -201,7 +203,7 @@ local function open_windows(tree_buf, preview_buf, input_buf)
   api.nvim_buf_set_lines(footer_buf, 0, -1, false, { instructions_normal })
   ui.buf_set_option(footer_buf, "modifiable", false)
 
-  local footer_row = dims.row + dims.height + 2
+  local footer_row = tree_row + tree_height + 1
   local footer_win = api.nvim_open_win(footer_buf, false, {
     relative = "editor",
     width = dims.total_width,
