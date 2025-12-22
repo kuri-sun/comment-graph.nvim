@@ -855,6 +855,12 @@ local function set_keymaps(view)
         close_all(view)
       end,
     })
+    api.nvim_buf_set_keymap(view.input_buf, "n", "<Space>wq", "", {
+      noremap = true,
+      callback = function()
+        close_all(view)
+      end,
+    })
     api.nvim_buf_set_keymap(view.input_buf, "n", "<Space>", "", {
       noremap = true,
       callback = function()
