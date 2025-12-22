@@ -114,40 +114,11 @@ local function set_preview_title(win, title)
   })
 end
 
-local function set_input_value(view, value)
-  if not (view.input_buf and api.nvim_buf_is_valid(view.input_buf)) then
-    return
-  end
-  view.updating_input = true
-  local line = "Filter: " .. (value or "")
-  api.nvim_buf_set_lines(view.input_buf, 0, -1, false, { line })
-  pcall(api.nvim_win_set_cursor, view.input_win, { 1, #line })
-  view.updating_input = false
-end
-
--- Create input (top), tree (left), preview (right), and footer (shortcuts) windows.
-local function open_windows(tree_buf, preview_buf, input_buf)
+-- Create tree (left), preview (right), and footer (shortcuts) windows.
+local function open_windows(tree_buf, preview_buf)
   local dims = layout()
-  local input_row = dims.row
-  local tree_row = input_row + 1
-  local tree_height = math.max(1, dims.height - 1)
-
-  local input_win = api.nvim_open_win(input_buf, false, {
-    relative = "editor",
-    width = dims.tree_width,
-    height = 1,
-    row = input_row,
-    col = dims.col,
-    border = "rounded",
-    title = " Filter ",
-    title_pos = "center",
-    style = "minimal",
-  })
-  ui.win_set_option(input_win, "number", false)
-  ui.win_set_option(input_win, "relativenumber", false)
-  ui.win_set_option(input_win, "signcolumn", "no")
-  ui.win_set_option(input_win, "wrap", false)
-
+  local tree_row = dims.row
+  local tree_height = dims.height
   local tree_win = api.nvim_open_win(tree_buf, true, {
     relative = "editor",
     width = dims.tree_width,
@@ -219,7 +190,7 @@ local function open_windows(tree_buf, preview_buf, input_buf)
   ui.win_set_option(footer_win, "relativenumber", false)
   ui.win_set_option(footer_win, "signcolumn", "no")
 
-  return input_win, tree_win, preview_win, footer_win, footer_buf
+  return tree_win, preview_win, footer_win, footer_buf
 end
 
 -- Build roots, adjacency, and parent map for the tree render.
@@ -539,7 +510,7 @@ end
 local function close_all(view)
   -- Close tree, preview, and footer windows.
   view.move_source = nil
-  for _, win in ipairs { view.input_win, view.win, view.preview_win, view.footer_win } do
+  for _, win in ipairs { view.win, view.preview_win, view.footer_win } do
     if win and api.nvim_win_is_valid(win) then
       api.nvim_win_close(win, true)
     end
@@ -674,11 +645,9 @@ local function set_keymaps(view)
   end)
 
   map(view.buf, "/", function()
-    if view.input_win and api.nvim_win_is_valid(view.input_win) then
-      api.nvim_set_current_win(view.input_win)
-      set_input_value(view, view.filter or "")
-      vim.cmd.startinsert()
-    end
+    local new_filter = vim.fn.input("Filter: ", view.filter or "")
+    view.filter = new_filter
+    view:refresh()
   end)
 
   map(view.buf, "<Esc>", function()
@@ -697,22 +666,6 @@ local function set_keymaps(view)
       view:update_preview()
     end,
   })
-
-  if view.input_buf then
-    api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-      group = group,
-      buffer = view.input_buf,
-      callback = function()
-        if view.updating_input then
-          return
-        end
-        local line = table.concat(api.nvim_buf_get_lines(view.input_buf, 0, 1, false), "")
-        local val = line:gsub("^%s*Filter:%s*", "")
-        view.filter = val
-        view:refresh()
-      end,
-    })
-  end
 end
 
 function View.open(opts)
@@ -721,13 +674,10 @@ function View.open(opts)
   local view = setmetatable({}, View)
   view.dir = opts.dir
   view.filter = ""
-  view.updating_input = false
   view.buf = ui.create_buf "comment-graph"
   view.preview_buf = ui.create_buf()
-  view.input_buf = ui.create_buf()
-  ui.buf_set_option(view.input_buf, "modifiable", true)
-  view.input_win, view.win, view.preview_win, view.footer_win, view.footer_buf =
-    open_windows(view.buf, view.preview_buf, view.input_buf)
+  view.win, view.preview_win, view.footer_win, view.footer_buf =
+    open_windows(view.buf, view.preview_buf)
   view.expanded = {}
   view.line_to_id = {}
   view.line_meta = {}
