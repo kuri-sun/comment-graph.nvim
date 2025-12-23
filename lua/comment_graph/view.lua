@@ -732,6 +732,9 @@ local function set_keymaps(view)
   map(view.preview_buf, "q", function()
     close_all(view)
   end)
+  map(view.preview_buf, "<Space>wq", function()
+    close_all(view)
+  end)
 
   map(view.buf, "<CR>", function()
     if view.move_source then

@@ -63,15 +63,15 @@ require("comment_graph").setup({
   --   end)
   --   -- Preview buffer (view.preview_buf)
   --   ctx.default_map(view.preview_buf, "q", function() ctx.close_all(view) end)
+  --   ctx.default_map(view.preview_buf, "<Space>wq", function() ctx.close_all(view) end)
   -- end,
 })
 ```
 
 Default keymaps:
 
-- `<Space>wq` or `q` to close.
-- `<CR>` to open in the tree-view.
+- `<Space>wq` or `q` to close (tree, search input, preview).
+- `<CR>` to open in the tree-view; `<CR>` in search returns focus to tree.
 - `m` to start move.
 - `<Space>` to expand/collapse.
 - `i` to focus search.
-- `<CR>` to return to tree.
