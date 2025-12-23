@@ -2,6 +2,8 @@
 
 Neovim integration for [comment-graph](https://github.com/kuri-sun/comment-graph).
 
+![comment-graph.nvim preview](assets/preview.gif)
+
 ## Installation
 
 Use your plugin manager of choice, e.g. with lazy.nvim:
