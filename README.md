@@ -71,7 +71,6 @@ require("comment_graph").setup({
 Default keymaps:
 
 - `<Space>wq` or `q` to close (tree, search input, preview).
-- `<CR>` to open in the tree-view; `<CR>` in search returns focus to tree.
-- `m` to start move.
+- `<CR>` to open file in the tree-view; `<CR>` in search returns focus to tree.
 - `<Space>` to expand/collapse.
 - `i` to focus search.
