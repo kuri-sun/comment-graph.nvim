@@ -2,8 +2,6 @@
 
 Neovim integration for [comment-graph](https://github.com/kuri-sun/comment-graph).
 
-Also see the CLI / npm package: [comment-graph](https://github.com/kuri-sun/comment-graph) (with Go, npm, and GitHub releases).
-
 ## Installation
 
 Use your plugin manager of choice, e.g. with lazy.nvim:
