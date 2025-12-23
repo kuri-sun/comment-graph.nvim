@@ -109,10 +109,6 @@ function M.check(opts)
   return run_cli("check", opts)
 end
 
-function M.fix(opts)
-  return run_cli("fix", opts)
-end
-
 -- Move a node under a new parent by overwriting @cgraph-deps with the provided list.
 function M.move(opts)
   opts = opts or {}
