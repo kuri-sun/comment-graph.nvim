@@ -17,8 +17,6 @@ View.__index = View
 local uv = vim.uv or vim.loop
 -- Footer hint text shown in the shortcuts row.
 local instructions_normal = "q: close   Enter: open file   i: search   Space: expand/collapse"
-local instructions_move =
-  "q: close   Esc: cancel move   Enter: open file   i: search   Space: expand/collapse"
 
 local hl_defined = false
 
@@ -499,7 +497,7 @@ function View:refresh()
     return
   end
 
-  local roots, children, parents, nodes = build_index(graph_data)
+  local roots, children, _, nodes = build_index(graph_data)
   local filter = self.filter or ""
   local render_filter = filter
   local allow = nil
@@ -573,8 +571,6 @@ function View:refresh()
     end
   end
   self.nodes = nodes
-  self.parents = parents or {}
-  self.move_source = nil
   self.line_to_id = {}
   set_footer(self, instructions_normal)
   local tree_line_to_id = {}
@@ -624,7 +620,6 @@ end
 
 local function close_all(view)
   -- Close tree, preview, and footer windows.
-  view.move_source = nil
   for _, win in ipairs { view.input_win, view.win, view.preview_win, view.footer_win } do
     if win and api.nvim_win_is_valid(win) then
       api.nvim_win_close(win, true)
@@ -648,57 +643,6 @@ local function open_file_at_cursor(view)
   close_all(view)
   vim.cmd(string.format("edit %s", vim.fn.fnameescape(path)))
   pcall(api.nvim_win_set_cursor, 0, { lnum, 0 })
-end
-
-local function move_to_target(view)
-  -- Re-parent the node selected for "move" under the current cursor target.
-  local row = api.nvim_win_get_cursor(view.win)[1]
-  local target = view.line_to_id[row]
-  if not (target and view.move_source and target ~= view.move_source) then
-    view.move_source = nil
-    set_footer(view, instructions_normal)
-    highlight_tree(view, view.lines or {})
-    return
-  end
-
-  local current_parents = (view.parents and view.parents[view.move_source]) or {}
-  local new_parents = {}
-  -- drop the first parent (current) to "move"
-  for idx, p in ipairs(current_parents) do
-    if idx ~= 1 then
-      table.insert(new_parents, p)
-    end
-    if p == target then
-      -- already under target; no-op
-      view.move_source = nil
-      highlight_tree(view, view.lines or {})
-      return
-    end
-  end
-  local already = false
-  for _, p in ipairs(new_parents) do
-    if p == target then
-      already = true
-      break
-    end
-  end
-  if not already then
-    table.insert(new_parents, 1, target)
-  end
-
-  local _, err = graph.move {
-    dir = view.dir,
-    id = view.move_source,
-    parent = target,
-    parents = new_parents,
-  }
-  view.move_source = nil
-  if err then
-    vim.notify("move failed: " .. err, vim.log.levels.ERROR)
-    return
-  end
-  set_footer(view, instructions_normal)
-  view:refresh()
 end
 
 local function set_keymaps(view)
@@ -737,42 +681,14 @@ local function set_keymaps(view)
   end)
 
   map(view.buf, "<CR>", function()
-    if view.move_source then
-      move_to_target(view)
-    else
-      open_file_at_cursor(view)
-    end
+    open_file_at_cursor(view)
   end)
 
   map(view.buf, "<Space>", function()
     view:toggle_line()
   end)
 
-  map(view.buf, "m", function()
-    local row = api.nvim_win_get_cursor(view.win)[1]
-    local id = view.line_to_id[row]
-    if not id then
-      return
-    end
-    if view.move_source == id then
-      view.move_source = nil
-      set_footer(view, instructions_normal)
-    else
-      view.move_source = id
-      set_footer(view, instructions_move)
-    end
-    highlight_tree(view, view.lines or {})
-  end)
-
   map(view.buf, "i", focus_input)
-
-  map(view.buf, "<Esc>", function()
-    if view.move_source then
-      view.move_source = nil
-      set_footer(view, instructions_normal)
-      highlight_tree(view, view.lines or {})
-    end
-  end)
 
   local group = api.nvim_create_augroup("CommentGraphView" .. view.buf, { clear = true })
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
@@ -926,8 +842,6 @@ function View.open(opts)
   view.line_to_id = {}
   view.line_meta = {}
   view.file_cache = {}
-  view.move_source = nil
-  view.parents = {}
   view.ns = api.nvim_create_namespace "comment_graph_view"
   view.nodes = {}
 

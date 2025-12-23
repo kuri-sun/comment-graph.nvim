@@ -50,7 +50,6 @@ require("comment_graph").setup({
   --   -- Tree buffer (view.buf)
   --   ctx.default_map(view.buf, "q", function() ctx.close_all(view) end)
   --   ctx.default_map(view.buf, "<CR>", function() vim.notify("open file") end)
-  --   ctx.default_map(view.buf, "m", function() vim.notify("start move") end)
   --   ctx.default_map(view.buf, "<Space>", function() vim.notify("toggle expand") end)
   --   ctx.default_map(view.buf, "i", function() ctx.focus_input(view) end)
   --   -- Search input (view.input_buf)
