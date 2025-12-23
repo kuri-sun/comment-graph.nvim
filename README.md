@@ -9,19 +9,8 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 ```lua
 {
   "kuri-sun/comment-graph.nvim",
-  config = function()
-    require("comment_graph").setup({
-      -- bin = "/absolute/path/to/comment-graph", -- optional override
-    })
-  end,
 }
 ```
-
-The plugin will try these locations for the binary (in order):
-
-1. `bin` passed to `setup()`
-2. `<cwd>/node_modules/.bin/comment-graph`
-3. `comment-graph` on PATH
 
 ## Commands
 
@@ -78,4 +67,11 @@ require("comment_graph").setup({
 })
 ```
 
-Default keymaps: tree uses `q` to close, `<CR>` to open, `m` to start move, `<Space>` to expand/collapse, `i` to focus search. Search input uses `i` to re-enter insert, `<CR>` to return to tree, `<Space>wq` or `q` to close. Preview is read-only with `q` to close.
+Default keymaps:
+
+- `<Space>wq` or `q` to close.
+- `<CR>` to open in the tree-view.
+- `m` to start move.
+- `<Space>` to expand/collapse.
+- `i` to focus search.
+- `<CR>` to return to tree.
