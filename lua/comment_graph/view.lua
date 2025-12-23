@@ -2,6 +2,9 @@ local api = vim.api
 local graph = require "comment_graph"
 local ui = require "comment_graph.ui"
 local graph_utils = require "comment_graph.graph_utils"
+local function cfg()
+  return graph.get_config and graph.get_config() or {}
+end
 
 -- UI layout:
 -- - tree pane (left) for navigating nodes
@@ -20,10 +23,11 @@ local instructions_move =
 local hl_defined = false
 
 local function get_icons()
+  local icons = (cfg().icons or {})
   return {
-    expanded = "[-]",
-    collapsed = "[+]",
-    leaf = " - ",
+    expanded = icons.expanded or "[-]",
+    collapsed = icons.collapsed or "[+]",
+    leaf = icons.leaf or " - ",
   }
 end
 
@@ -53,13 +57,18 @@ local function node_label(node_item)
 end
 
 local function node_matches(filter, node_item)
+  local filter_cfg = cfg().filter or {}
+  local case_sensitive = filter_cfg.case_sensitive
   if not filter or filter == "" or not node_item then
     return true
   end
   local hay =
     table.concat({ node_item.id or "", node_item.label or "", node_item.file or "" }, " \0")
-  hay = hay:lower()
-  return hay:find(filter:lower(), 1, true) ~= nil
+  if not case_sensitive then
+    hay = hay:lower()
+    filter = filter:lower()
+  end
+  return hay:find(filter, 1, true) ~= nil
 end
 
 local function file_icon(file)
@@ -88,12 +97,20 @@ end
 
 -- Compute layout sizes/positions for tree, preview, and footer.
 local function layout()
-  local total_width = math.max(80, math.floor(vim.o.columns * 0.9))
-  local gap = 2
+  local layout_cfg = cfg().layout or {}
+  local total_width = math.max(
+    layout_cfg.min_total_width or 80,
+    math.floor(vim.o.columns * (layout_cfg.width_ratio or 0.9))
+  )
+  local gap = layout_cfg.gap or 2
   local usable = total_width - gap
-  local tree_width = math.max(35, math.floor(usable * 0.55))
-  local preview_width = math.max(30, total_width - tree_width - gap)
-  local height = math.max(24, math.floor(vim.o.lines * 0.75))
+  local tree_width =
+    math.max(layout_cfg.min_tree_width or 35, math.floor(usable * (layout_cfg.tree_ratio or 0.55)))
+  local preview_width = math.max(layout_cfg.min_preview_width or 30, total_width - tree_width - gap)
+  local height = math.max(
+    layout_cfg.min_height or 24,
+    math.floor(vim.o.lines * (layout_cfg.height_ratio or 0.75))
+  )
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - (tree_width + gap + preview_width)) / 2)
   return {
@@ -199,10 +216,11 @@ local function open_windows(tree_buf, preview_buf, input_buf)
     ui.win_set_option(win, "wrap", false)
   end
   ui.win_set_option(tree_win, "cursorline", true)
-  ui.win_set_option(preview_win, "cursorline", false)
-  ui.win_set_option(preview_win, "number", true)
+  local preview_cfg = cfg().preview or {}
+  ui.win_set_option(preview_win, "cursorline", preview_cfg.cursorline or false)
+  ui.win_set_option(preview_win, "number", preview_cfg.number ~= false)
 
-  set_preview_title(preview_win, "Preview")
+  set_preview_title(preview_win, (cfg().preview or {}).title or "Preview")
 
   -- footer window for key hints
   local footer_buf = api.nvim_create_buf(false, true)
@@ -685,7 +703,7 @@ end
 
 local function set_keymaps(view)
   -- Modal-ish controls: keep tree/search primary; preview is passive except for quit.
-  -- Wire up core shortcuts across both panes.
+  -- Wire up core shortcuts across both panes, optionally overridden via config.
   local function map(buf, lhs, fn)
     api.nvim_buf_set_keymap(buf, "n", lhs, "", {
       nowait = true,
@@ -699,6 +717,13 @@ local function set_keymaps(view)
       set_input_value(view, view.filter or "")
       vim.cmd.startinsert()
     end
+  end
+
+  local keymap_cfg = cfg().keymaps
+  if type(keymap_cfg) == "function" then
+    -- If user supplies a function, let them bind keys themselves.
+    keymap_cfg(view, { default_map = map, focus_input = focus_input, close_all = close_all })
+    return
   end
 
   map(view.buf, "q", function()
@@ -890,6 +915,8 @@ function View.open(opts)
   ui.buf_set_option(view.input_buf, "filetype", "comment-graph-filter")
   ui.buf_set_option(view.input_buf, "swapfile", false)
   ui.buf_set_option(view.input_buf, "modifiable", true)
+  local filter_cfg = cfg().filter or {}
+  view.filter = filter_cfg.initial or ""
   view.input_win, view.win, view.preview_win, view.footer_win, view.footer_buf =
     open_windows(view.buf, view.preview_buf, view.input_buf)
   view.expanded = {}
@@ -903,7 +930,7 @@ function View.open(opts)
 
   set_keymaps(view)
   set_footer(view, instructions_normal)
-  set_input_value(view, "")
+  set_input_value(view, view.filter or "")
   view:refresh()
   if view.win and api.nvim_win_is_valid(view.win) then
     -- Start in tree (Normal) to avoid accidental insert in search.

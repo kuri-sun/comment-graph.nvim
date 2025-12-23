@@ -28,3 +28,39 @@ The plugin will try these locations for the binary (in order):
 - `:CommentGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; streams JSON without writing repo files).
 
 More commands and UI are coming next.
+
+## Configuration
+
+You can tune visuals and behavior via `setup`:
+
+```lua
+require("comment_graph").setup({
+  bin = "/absolute/path/to/comment-graph", -- optional; falls back to node_modules/.bin or PATH
+  icons = { expanded = "[-]", collapsed = "[+]", leaf = " - " },
+  layout = {
+    width_ratio = 0.9,    -- overall width vs Neovim columns
+    height_ratio = 0.75,  -- overall height vs Neovim lines
+    tree_ratio = 0.55,    -- portion of width for tree
+    min_total_width = 80,
+    min_tree_width = 35,
+    min_preview_width = 30,
+    gap = 2,
+  },
+  preview = {
+    number = true,        -- show line numbers in preview
+    cursorline = false,
+    title = "Preview",
+  },
+  filter = {
+    initial = "",         -- pre-fill search input
+    case_sensitive = false,
+  },
+  -- Optional: override default keymaps by providing a function
+  -- function(view, ctx)
+  --   ctx.default_map(view.buf, "q", function() ctx.close_all(view) end)
+  --   -- add or replace mappings...
+  -- end,
+})
+```
+
+Default keymaps: tree uses `q` to close, `<CR>` to open, `m` to start move, `<Space>` to expand/collapse, `i` to focus search. Search input uses `i` to re-enter insert, `<CR>` to return to tree, `<Space>wq` or `q` to close. Preview is read-only with `q` to close.

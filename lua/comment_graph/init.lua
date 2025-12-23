@@ -9,6 +9,26 @@ local config = {
     collapsed = "[+]",
     leaf = " - ",
   },
+  layout = {
+    width_ratio = 0.9,
+    height_ratio = 0.75,
+    min_total_width = 80,
+    min_tree_width = 35,
+    min_preview_width = 30,
+    gap = 2,
+    tree_ratio = 0.55,
+  },
+  preview = {
+    number = true,
+    cursorline = false,
+    title = "Preview",
+  },
+  filter = {
+    case_sensitive = false,
+    initial = "",
+  },
+  -- keymaps can be overridden with a function(view, ctx) that calls ctx.default_map(...)
+  keymaps = nil,
 }
 
 local function path_exists(path)
