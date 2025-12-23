@@ -55,10 +55,25 @@ require("comment_graph").setup({
     initial = "",         -- pre-fill search input
     case_sensitive = false,
   },
-  -- Optional: override default keymaps by providing a function
+  -- Optional: override default keymaps by providing a function.
+  -- ctx.default_map(buf, lhs, callback) is available for convenience.
   -- function(view, ctx)
+  --   -- Tree buffer (view.buf)
   --   ctx.default_map(view.buf, "q", function() ctx.close_all(view) end)
-  --   -- add or replace mappings...
+  --   ctx.default_map(view.buf, "<CR>", function() vim.notify("open file") end)
+  --   ctx.default_map(view.buf, "m", function() vim.notify("start move") end)
+  --   ctx.default_map(view.buf, "<Space>", function() vim.notify("toggle expand") end)
+  --   ctx.default_map(view.buf, "i", function() ctx.focus_input(view) end)
+  --   -- Search input (view.input_buf)
+  --   ctx.default_map(view.input_buf, "q", function() ctx.close_all(view) end)
+  --   ctx.default_map(view.input_buf, "<Space>wq", function() ctx.close_all(view) end)
+  --   ctx.default_map(view.input_buf, "<CR>", function()
+  --     if view.win and vim.api.nvim_win_is_valid(view.win) then
+  --       vim.api.nvim_set_current_win(view.win)
+  --     end
+  --   end)
+  --   -- Preview buffer (view.preview_buf)
+  --   ctx.default_map(view.preview_buf, "q", function() ctx.close_all(view) end)
   -- end,
 })
 ```
