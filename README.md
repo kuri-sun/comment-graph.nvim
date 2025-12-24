@@ -4,6 +4,11 @@ Neovim integration for [comment-graph](https://github.com/kuri-sun/comment-graph
 
 ![comment-graph.nvim preview](assets/preview.gif)
 
+## Prerequisites
+
+- A working [`comment-graph` CLI binary installed](https://github.com/kuri-sun/comment-graph#installation) on your system/project. The plugin tries to look up `bin` (from `setup`), `node_modules/.bin/comment-graph`, or your `$PATH`.
+- Neovim >= 0.9.4.
+
 ## Installation
 
 Use your plugin manager of choice, e.g. with lazy.nvim:
@@ -13,11 +18,6 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
   "kuri-sun/comment-graph.nvim",
 }
 ```
-
-## Prerequisites
-
-- A working [`comment-graph` CLI binary installed](https://github.com/kuri-sun/comment-graph#installation) on your system/project. The plugin tries to look up `bin` (from `setup`), `node_modules/.bin/comment-graph`, or your `$PATH`.
-- Neovim >= 0.9.4.
 
 ## Commands
 
