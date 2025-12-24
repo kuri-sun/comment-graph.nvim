@@ -2,7 +2,7 @@ local M = {}
 
 local util = require "comment_graph.util"
 
-local defaults = {
+local config = {
   bin = nil, -- user override
   icons = {
     expanded = "[-]",
@@ -30,8 +30,6 @@ local defaults = {
   -- keymaps can be overridden with a function(view, ctx) that calls ctx.default_map(...)
   keymaps = nil,
 }
-
-local config = vim.deepcopy(defaults)
 
 local function path_exists(path)
   return vim.loop.fs_stat(path) ~= nil
@@ -92,15 +90,11 @@ local function run_cli(subcommand, opts)
 end
 
 function M.setup(opts)
-  config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
+  config = vim.tbl_extend("force", config, opts or {})
 end
 
 function M.get_config()
   return config
-end
-
-function M.get_defaults()
-  return vim.deepcopy(defaults)
 end
 
 function M.version()
