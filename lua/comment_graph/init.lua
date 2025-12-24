@@ -55,23 +55,44 @@ local function resolve_bin()
   return "comment-graph"
 end
 
-local function run_version()
+local function ensure_bin()
   local bin = resolve_bin()
+  -- vim.fn.executable works for both absolute paths and PATH lookups.
+  local ok = (vim.fn.executable(bin) == 1)
+  if not ok then
+    local msg = table.concat({
+      "comment-graph binary not found or not executable.",
+      "Install the CLI (e.g., npm i -D @comment-graph/comment-graph, or use a platform package),",
+      "or set require('comment_graph').setup{ bin = '/absolute/path/to/comment-graph' }.",
+    }, " ")
+    return nil, msg
+  end
+  return bin, nil
+end
+
+local function run_version()
+  local bin, err = ensure_bin()
+  if not bin then
+    return nil, err
+  end
   local cmd = { bin, "--version" }
-  local ok, out, err = pcall(vim.fn.system, cmd)
+  local ok, out, sys_err = pcall(vim.fn.system, cmd)
   if not ok then
     return nil, ("failed to run comment-graph: %s"):format(out)
   end
   local status = vim.v.shell_error
   if status ~= 0 then
-    return nil, err ~= "" and err or out
+    return nil, sys_err ~= "" and sys_err or out
   end
   return out, nil
 end
 
 local function run_cli(subcommand, opts)
   opts = opts or {}
-  local bin = resolve_bin()
+  local bin, err = ensure_bin()
+  if not bin then
+    return nil, err
+  end
   local dir = opts.dir or vim.loop.cwd() or "."
   local args = { bin, subcommand, "--dir", dir }
   if opts.args then
@@ -79,12 +100,12 @@ local function run_cli(subcommand, opts)
       table.insert(args, a)
     end
   end
-  local ok, out, err = pcall(vim.fn.system, args)
+  local ok, out, sys_err = pcall(vim.fn.system, args)
   if not ok then
     return nil, ("failed to run comment-graph: %s"):format(out)
   end
   if vim.v.shell_error ~= 0 then
-    return nil, err ~= "" and err or out
+    return nil, sys_err ~= "" and sys_err or out
   end
   return util.trim(out), nil
 end
