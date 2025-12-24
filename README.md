@@ -14,6 +14,11 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 }
 ```
 
+## Prerequisites
+
+- A working `comment-graph` CLI binary on your system. The plugin looks in `bin` (from `setup`), `node_modules/.bin/comment-graph`, or your `$PATH`.
+- Neovim >= 0.9.4.
+
 ## Commands
 
 - `:CommentGraphView [dir]` — modal tree view with right-hand preview.
