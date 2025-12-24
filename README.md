@@ -11,9 +11,6 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 ```lua
 {
   "kuri-sun/comment-graph.nvim",
-  opts = {
-    -- ...
-  },
 }
 ```
 
