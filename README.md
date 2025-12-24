@@ -23,7 +23,7 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 
 ## Commands
 
-- `:CommentGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, refresh with `r`, close with `q`; streams JSON without writing repo files).
+- `:CommentGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, close with `q`; streams JSON without writing repo files).
 
 More commands and UI are coming next.
 
