@@ -12,20 +12,14 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 {
   "kuri-sun/comment-graph.nvim",
   opts = {
-    -- Example overrides (all fields optional)
-    -- bin = "/absolute/path/to/comment-graph",
-    -- layout = { width_ratio = 0.9, height_ratio = 0.75, tree_ratio = 0.55 },
-    -- preview = { number = true, cursorline = false, title = "Preview" },
-    -- filter = { initial = "", case_sensitive = false },
+    -- ...
   },
 }
 ```
 
 ## Commands
 
-- `:CommentGraphView [dir]` — modal tree view with right-hand preview (toggle nodes with `<CR>`, close with `q`; streams JSON without writing repo files).
-
-More commands and UI are coming next.
+- `:CommentGraphView [dir]` — modal tree view with right-hand preview.
 
 ## Configuration
 
