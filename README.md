@@ -16,7 +16,7 @@ Use your plugin manager of choice, e.g. with lazy.nvim:
 
 ## Prerequisites
 
-- A working `comment-graph` CLI binary on your system. The plugin looks in `bin` (from `setup`), `node_modules/.bin/comment-graph`, or your `$PATH`.
+- [A working `comment-graph` CLI binary installed on your system/project](https://github.com/kuri-sun/comment-graph#installation). The plugin tries to look up `bin` (from `setup`), `node_modules/.bin/comment-graph`, or your `$PATH`.
 - Neovim >= 0.9.4.
 
 ## Commands
