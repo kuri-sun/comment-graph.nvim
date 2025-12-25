@@ -130,29 +130,6 @@ function M.check(opts)
   return run_cli("check", opts)
 end
 
--- Move a node under a new parent by overwriting @cgraph-deps with the provided list.
-function M.move(opts)
-  opts = opts or {}
-  local id = opts.id
-  local parent = opts.parent
-  local parents = opts.parents
-  if not id or not parent then
-    return nil, "id and parent are required"
-  end
-  if not parents or #parents == 0 then
-    parents = { parent }
-  end
-  local dir = opts.dir
-  local _, err = run_cli("deps", {
-    dir = dir,
-    args = { "set", "--id", id, "--depends-on", table.concat(parents, ",") },
-  })
-  if err then
-    return nil, err
-  end
-  return true, nil
-end
-
 -- Generate a fresh graph as JSON streamed to stdout and return decoded table.
 -- Does not write any files in the user's repo; includes validation report.
 function M.graph(opts)
