@@ -1,5 +1,3 @@
-local uv = vim.uv or vim.loop
-
 local M = {}
 
 local function is_list(tbl)
@@ -7,10 +5,6 @@ local function is_list(tbl)
     return vim.islist(tbl)
   end
   return vim.tbl_islist(tbl)
-end
-
-local function file_exists(path)
-  return path and uv.fs_stat(path) ~= nil
 end
 
 function M.resolve_path(root, path)
@@ -22,11 +16,6 @@ function M.resolve_path(root, path)
   end
   root = root or "."
   return vim.fn.fnamemodify(root .. "/" .. path, ":p")
-end
-
-function M.graph_exists(root)
-  local base = vim.fn.fnamemodify(root or ".", ":p")
-  return file_exists(base .. "/.comment-graph") or file_exists(base .. "/.comment-graph.json")
 end
 
 function M.normalize_nodes(raw)
